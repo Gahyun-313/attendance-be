@@ -60,7 +60,7 @@ public class NfcTag {
     }
 
     // NFC 태그 정보 수정
-    public void setUpdateInfo(String name, String description, String location) {
+    public void updateInfo(String name, String description, String location) {
         if (name != null) this.name = name;
         if (description != null) this.description = description;
         if (location != null) this.location = location;
