@@ -1,4 +1,4 @@
-package com.attendance.entity;
+package com.attendance.domain.user.entity;
 
 /**
  * 사용자 역할 Enum

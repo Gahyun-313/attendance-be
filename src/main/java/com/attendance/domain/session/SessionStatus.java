@@ -1,4 +1,4 @@
-package com.attendance.entity;
+package com.attendance.domain.session;
 
 /**
  * 출석 세션 상태 Enum
