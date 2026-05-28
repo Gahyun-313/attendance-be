@@ -4,6 +4,7 @@ import com.attendance.global.security.JwtAccessDeniedHandler;
 import com.attendance.global.security.JwtAuthenticationEntryPoint;
 import com.attendance.global.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -19,6 +20,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -42,6 +44,10 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;  // 요청마다 JWT 검증
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;  // 401 처리
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;    // 403 처리
+
+    // application-local.yml의 cors.allowed-origins 값 주입
+    @Value("${cors.allowed-origins}")
+    private String allowedOrigins;
 
     /**
      * Security Filter Chain 설정
@@ -119,11 +125,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // 허용할 클라이언트 Origin
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:3000",        // 로컬 개발 환경
-                "https://admin.yourdomain.com"  // 운영 환경 -> 환경 변수로 관리 필요
-        ));
+        
+        // 허용할 클라이언트 Origin (application-local.yml cors.allowed-origins 설정값 사용)
+        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+
         // 허용할 HTTP 메서드
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         // 모든 헤더 적용 (Authorization: Bearer {token} 헤더 포함)
