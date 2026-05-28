@@ -33,9 +33,6 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${jwt.access-token-validity}")
-    private long accessTokenValidity;
-
     /**
      * 회원가입
      */
@@ -88,7 +85,7 @@ public class AuthService {
                 .token(refreshToken)
                 .build());
 
-        return AuthResponse.of(accessToken, refreshToken, accessTokenValidity / 1000, user);
+        return AuthResponse.of(accessToken, refreshToken, jwtTokenProvider.getAccessTokenExpirationSeconds(), user);
     }
 
     /**
@@ -116,7 +113,7 @@ public class AuthService {
                 user.getId(), user.getUsername(), user.getRole().name()
         );
 
-        return AuthResponse.ofAccessToken(newAccessToken, accessTokenValidity / 1000);
+        return AuthResponse.ofAccessToken(newAccessToken, jwtTokenProvider.getAccessTokenExpirationSeconds());
     }
 
     /**
