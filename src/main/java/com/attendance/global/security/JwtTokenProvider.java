@@ -27,8 +27,8 @@ public class JwtTokenProvider {
     // 1. 설정값 주입 및 초기화
     //------------------------------------------------
     private final SecretKey secretKey;
-    private final long accessTokenValidity;
-    private final long refreshTokenValidity;
+    private final long accessTokenExpiration;
+    private final long refreshTokenExpiration;
 
     /** 생성자 : application.yml의 JWT 설정을 주입받아 초기화 */
     public JwtTokenProvider(
@@ -36,14 +36,14 @@ public class JwtTokenProvider {
             // -> UTF-8 바이트 배열로 변환 후 HMAC-SHA256 전용 SecretKey 객체 생성
             // -> 실제 운영 환경에서는 환경변수/Vault로 관리
             @Value("${jwt.secret}") String secret,
-            @Value("${jwt.access-token-validity}") long accessTokenValidity,    // Access Token 유효 기간 (밀리 초)
-            @Value("${jwt.refresh-token-validity}") long refreshTokenValidity   // Refresh Token 유효 기간 (밀리 초)
+            @Value("${jwt.access-token-expiration}") long accessTokenExpiration,    // Access Token 유효 기간 (밀리 초)
+            @Value("${jwt.refresh-token-expiration}") long refreshTokenExpiration   // Refresh Token 유효 기간 (밀리 초)
     ) {
         // Secret Key를 HMAC-SHA256용 SecretKey 객체로 변환
         // UTF-8 바이트 배열로 변환 후 Keys.hmacShaKeyFor()로 키 생성
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-        this.accessTokenValidity = accessTokenValidity;
-        this.refreshTokenValidity = refreshTokenValidity;
+        this.accessTokenExpiration = accessTokenExpiration;
+        this.refreshTokenExpiration = refreshTokenExpiration;
     }
 
     //------------------------------------------------
@@ -52,7 +52,7 @@ public class JwtTokenProvider {
     /** Access Token 생성 */
     public String createAccessToken(Long userId, String username, String role) {
         Date now = new Date();
-        Date validity = new Date(now.getTime() + accessTokenValidity); // 만료 시간 = 현재 + 유효기간
+        Date validity = new Date(now.getTime() + accessTokenExpiration); // 만료 시간 = 현재 + 유효기간
 
         return Jwts.builder()
                 .subject(username)  // sub: Spring Security principal로 사용되는 사용자명
@@ -68,7 +68,7 @@ public class JwtTokenProvider {
     // Access Token 재발급 시 사용자 식별 용도로만 사용하므로 role 미포함
     public String createRefreshToken(Long userId, String username) {
         Date now = new Date();
-        Date validity = new Date(now.getTime() + refreshTokenValidity);
+        Date validity = new Date(now.getTime() + refreshTokenExpiration);
 
         return Jwts.builder()
                 .subject(username)
@@ -98,6 +98,11 @@ public class JwtTokenProvider {
     public String getRole(String token) {
         Claims claims = parseClaims(token);
         return claims.get("role", String.class);
+    }
+
+    // AuthService에서 @Value 없이 만료 시간 사용하기 위한 메서드
+    public long getAccessTokenExpirationSeconds() {
+        return accessTokenExpiration / 1000;
     }
 
     //------------------------------------------------
