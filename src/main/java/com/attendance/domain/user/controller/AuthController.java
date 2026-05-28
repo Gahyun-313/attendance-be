@@ -18,66 +18,43 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * 인증 API Controller
- */
+/** 인증 API Controller */
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final AuthService authService;
+  private final AuthService authService;
 
-    /**
-     * 회원가입
-     * POST /api/auth/signup
-     */
-    @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<UserResponse>> signup(
-            @Valid @RequestBody SignupRequest request
-    ) {
-        UserResponse response = authService.signup(request);
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.success(response, "회원가입이 완료되었습니다"));
-    }
+  /** 회원가입 POST /api/auth/signup */
+  @PostMapping("/signup")
+  public ResponseEntity<ApiResponse<UserResponse>> signup(
+      @Valid @RequestBody SignupRequest request) {
+    UserResponse response = authService.signup(request);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResponse.success(response, "회원가입이 완료되었습니다"));
+  }
 
-    /**
-     * 로그인
-     * POST /api/auth/login
-     */
-    @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthResponse>> login(
-            @Valid @RequestBody LoginRequest request
-    ) {
-        AuthResponse response = authService.login(request);
-        return ResponseEntity
-                .ok(ApiResponse.success(response, "로그인에 성공했습니다"));
-    }
+  /** 로그인 POST /api/auth/login */
+  @PostMapping("/login")
+  public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
+    AuthResponse response = authService.login(request);
+    return ResponseEntity.ok(ApiResponse.success(response, "로그인에 성공했습니다"));
+  }
 
-    /**
-     * 토큰 갱신
-     * POST /api/auth/refresh
-     */
-    @PostMapping("/refresh")
-    public ResponseEntity<ApiResponse<AuthResponse>> refresh(
-            @Valid @RequestBody TokenRefreshRequest request
-    ) {
-        AuthResponse response = authService.refresh(request);
-        return ResponseEntity
-                .ok(ApiResponse.success(response, "토큰이 갱신되었습니다"));
-    }
+  /** 토큰 갱신 POST /api/auth/refresh */
+  @PostMapping("/refresh")
+  public ResponseEntity<ApiResponse<AuthResponse>> refresh(
+      @Valid @RequestBody TokenRefreshRequest request) {
+    AuthResponse response = authService.refresh(request);
+    return ResponseEntity.ok(ApiResponse.success(response, "토큰이 갱신되었습니다"));
+  }
 
-    /**
-     * 로그아웃
-     * POST /api/auth/logout
-     */
-    @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> logout(
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    ) {
-        authService.logout(userDetails.getUserId());
-        return ResponseEntity
-                .ok(ApiResponse.success("로그아웃되었습니다"));
-    }
+  /** 로그아웃 POST /api/auth/logout */
+  @PostMapping("/logout")
+  public ResponseEntity<ApiResponse<Void>> logout(
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    authService.logout(userDetails.getUserId());
+    return ResponseEntity.ok(ApiResponse.success("로그아웃되었습니다"));
+  }
 }
