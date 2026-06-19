@@ -2,9 +2,9 @@ package com.attendance.domain.user.controller;
 
 import com.attendance.domain.user.dto.AuthResponse;
 import com.attendance.domain.user.dto.LoginRequest;
-import com.attendance.domain.user.dto.SignupRequest;
 import com.attendance.domain.user.dto.TokenRefreshRequest;
 import com.attendance.domain.user.dto.UserResponse;
+import com.attendance.domain.user.dto.CreateUserRequest;
 import com.attendance.domain.user.service.AuthService;
 import com.attendance.global.response.ApiResponse;
 import com.attendance.global.security.CustomUserDetails;
@@ -31,7 +31,7 @@ public class AuthController {
   @PreAuthorize("hasRole('ADMIN')")
   @PostMapping("/signup")
   public ResponseEntity<ApiResponse<UserResponse>> signup(
-      @Valid @RequestBody SignupRequest request) {
+      @Valid @RequestBody CreateUserRequest request) {
     UserResponse response = authService.signup(request);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(ApiResponse.success(response, "회원가입이 완료되었습니다"));
