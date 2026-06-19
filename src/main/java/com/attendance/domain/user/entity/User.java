@@ -52,15 +52,38 @@ public class User implements UserDetails {
   @Column(length = 100)
   private String organization;
 
-  // 학번
+  // 학번 (학생 전용, username과 동일 값 가능)
   @Column(name = "student_id", length = 20)
   private String studentId;
+
+  // 소속 그룹 (예: "A반", "1학년") - 어드민 웹에서 그룹별 필터링/세션 대상 지정에 사용
+  @Column(name = "group_name", length = 100)
+  private String groupName;
+
+  // 비고 - 관리자가 사용자에 대해 남기는 메모
+  @Column(length = 500)
+  private String note;
 
   // FCM 푸시 알림 토큰
   @Column(name = "fcm_token", length = 255)
   private String fcmToken;
 
-  // 계정 활성화 여부
+  // 최초 비밀번호 변경 여부 - 관리자가 생성한 초기 비밀번호를 그대로 쓰고 있는지 추적
+  @Builder.Default
+  @Column(name = "password_changed", nullable = false)
+  private Boolean passwordChanged = false;
+
+  // 활성/비활성 상태 - 비활성화된 사용자는 로그인/출석 체크 불가 처리에 사용
+  @Builder.Default
+  @Column(nullable = false)
+  private Boolean active = true;
+
+  // 첫 출석 시각 - 사용자 대시보드 통계(신규 대상자 등)에 사용, 출석 전이면 null
+  @Column(name = "first_attendance_at")
+  private LocalDateTime firstAttendanceAt;
+
+  // 계정 활성화 여부 (Spring Security용 - 로그인 가능 여부)
+  @Builder.Default
   @Column(nullable = false)
   private Boolean enabled = true;
 
@@ -115,5 +138,29 @@ public class User implements UserDetails {
   @Override
   public boolean isEnabled() {
     return enabled;
+  }
+
+  // === 도메인 메서드 ===
+
+  /** 첫 출석 처리 - 이미 첫 출석 시각이 기록되어 있다면 변경하지 않음 */
+  public void recordFirstAttendanceIfAbsent(LocalDateTime checkInTime) {
+    if (this.firstAttendanceAt == null) {
+      this.firstAttendanceAt = checkInTime;
+    }
+  }
+
+  /** 비밀번호 변경 완료 처리 */
+  public void markPasswordChanged() {
+    this.passwordChanged = true;
+  }
+
+  /** 사용자 활성화 */
+  public void activate() {
+    this.active = true;
+  }
+
+  /** 사용자 비활성화 */
+  public void deactivate() {
+    this.active = false;
   }
 }
