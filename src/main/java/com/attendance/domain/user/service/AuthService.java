@@ -1,5 +1,6 @@
 package com.attendance.domain.user.service;
 
+import java.time.LocalDateTime;
 import com.attendance.domain.user.dto.AuthResponse;
 import com.attendance.domain.user.dto.CreateUserRequest;
 import com.attendance.domain.user.dto.LoginRequest;
@@ -64,8 +65,15 @@ public class AuthService {
     String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getUsername());
 
     refreshTokenRepository.deleteByUserId(user.getId());
+
     refreshTokenRepository.save(
-            RefreshToken.builder().userId(user.getId()).token(refreshToken).build());
+            RefreshToken.builder()
+                    .userId(user.getId())
+                    .token(refreshToken)
+                    // Refresh Token 만료 시각 - DB에서 만료 여부 확인에 사용
+                    .expiresAt(LocalDateTime.now().plusSeconds(
+                            jwtTokenProvider.getRefreshTokenExpirationSeconds()))
+                    .build());
 
     return AuthResponse.of(
             accessToken, refreshToken, jwtTokenProvider.getAccessTokenExpirationSeconds(), user);
