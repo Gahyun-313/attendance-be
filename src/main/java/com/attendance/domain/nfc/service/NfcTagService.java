@@ -6,6 +6,9 @@ import com.attendance.domain.nfc.dto.NfcTagUpdateRequest;
 import com.attendance.domain.nfc.entity.NfcTag;
 import com.attendance.domain.nfc.entity.NfcTagStatus;
 import com.attendance.domain.nfc.repository.NfcTagRepository;
+import com.attendance.global.exception.DuplicateException;
+import com.attendance.global.exception.EntityNotFoundException;
+import com.attendance.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,34 +26,24 @@ public class NfcTagService {
   /** NFC 태그 등록 */
   @Transactional
   public NfcTagResponse createNfcTag(NfcTagRequest request) {
-    // UID 중복 체크
     if (nfcTagRepository.existsByUid(request.getUid())) {
-      throw new IllegalArgumentException("이미 등록된 UID입니다: " + request.getUid());
+      throw new DuplicateException(ErrorCode.DUPLICATE_NFC_UID);
     }
-
-    NfcTag nfcTag = request.toEntity();
-    NfcTag savedNfcTag = nfcTagRepository.save(nfcTag);
-
+    NfcTag savedNfcTag = nfcTagRepository.save(request.toEntity());
     return NfcTagResponse.from(savedNfcTag);
   }
 
   /** NFC 태그 ID로 조회 */
   public NfcTagResponse getNfcTagById(Long id) {
-    NfcTag nfcTag =
-        nfcTagRepository
-            .findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("NFC 태그를 찾을 수 없습니다: " + id));
-
+    NfcTag nfcTag = nfcTagRepository.findById(id)
+            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.NFC_TAG_NOT_FOUND));
     return NfcTagResponse.from(nfcTag);
   }
 
   /** NFC 태그 UID로 조회 */
   public NfcTagResponse getNfcTagByUid(String uid) {
-    NfcTag nfcTag =
-        nfcTagRepository
-            .findByUid(uid)
-            .orElseThrow(() -> new IllegalArgumentException("NFC 태그를 찾을 수 없습니다: " + uid));
-
+    NfcTag nfcTag = nfcTagRepository.findByUid(uid)
+            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.NFC_TAG_NOT_FOUND));
     return NfcTagResponse.from(nfcTag);
   }
 
@@ -67,46 +60,34 @@ public class NfcTagService {
   /** NFC 태그 검색 (이름 또는 위치) */
   public Page<NfcTagResponse> searchNfcTags(String keyword, Pageable pageable) {
     return nfcTagRepository
-        .findByNameContainingOrLocationContaining(keyword, keyword, pageable)
-        .map(NfcTagResponse::from);
+            .findByNameContainingOrLocationContaining(keyword, keyword, pageable)
+            .map(NfcTagResponse::from);
   }
 
   /** NFC 태그 정보 수정 */
   @Transactional
   public NfcTagResponse updateNfcTag(Long id, NfcTagUpdateRequest request) {
-    NfcTag nfcTag =
-        nfcTagRepository
-            .findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("NFC 태그를 찾을 수 없습니다: " + id));
-
+    NfcTag nfcTag = nfcTagRepository.findById(id)
+            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.NFC_TAG_NOT_FOUND));
     nfcTag.updateInfo(request.getName(), request.getDescription(), request.getLocation());
-
     return NfcTagResponse.from(nfcTag);
   }
 
   /** NFC 태그 활성화 */
   @Transactional
   public NfcTagResponse activateNfcTag(Long id) {
-    NfcTag nfcTag =
-        nfcTagRepository
-            .findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("NFC 태그를 찾을 수 없습니다: " + id));
-
+    NfcTag nfcTag = nfcTagRepository.findById(id)
+            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.NFC_TAG_NOT_FOUND));
     nfcTag.activate();
-
     return NfcTagResponse.from(nfcTag);
   }
 
   /** NFC 태그 비활성화 */
   @Transactional
   public NfcTagResponse deactivateNfcTag(Long id) {
-    NfcTag nfcTag =
-        nfcTagRepository
-            .findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("NFC 태그를 찾을 수 없습니다: " + id));
-
+    NfcTag nfcTag = nfcTagRepository.findById(id)
+            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.NFC_TAG_NOT_FOUND));
     nfcTag.deactivate();
-
     return NfcTagResponse.from(nfcTag);
   }
 
@@ -114,9 +95,8 @@ public class NfcTagService {
   @Transactional
   public void deleteNfcTag(Long id) {
     if (!nfcTagRepository.existsById(id)) {
-      throw new IllegalArgumentException("NFC 태그를 찾을 수 없습니다: " + id);
+      throw new EntityNotFoundException(ErrorCode.NFC_TAG_NOT_FOUND);
     }
-
     nfcTagRepository.deleteById(id);
   }
 
