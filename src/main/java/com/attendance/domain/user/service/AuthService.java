@@ -1,8 +1,8 @@
 package com.attendance.domain.user.service;
 
 import com.attendance.domain.user.dto.AuthResponse;
+import com.attendance.domain.user.dto.CreateUserRequest;
 import com.attendance.domain.user.dto.LoginRequest;
-import com.attendance.domain.user.dto.SignupRequest;
 import com.attendance.domain.user.dto.TokenRefreshRequest;
 import com.attendance.domain.user.dto.UserResponse;
 import com.attendance.domain.user.entity.RefreshToken;
@@ -30,20 +30,16 @@ public class AuthService {
   private final JwtTokenProvider jwtTokenProvider;
   private final PasswordEncoder passwordEncoder;
 
-  /** 회원가입 */
+  /** 학생 계정 생성 (ADMIN 전용) */
   @Transactional
-  public UserResponse signup(SignupRequest request) {
-    // username 중복 체크
+  public UserResponse signup(CreateUserRequest request) {
     if (userRepository.existsByUsername(request.getUsername())) {
       throw new DuplicateException(ErrorCode.DUPLICATE_USERNAME);
     }
-
-    // email 중복 체크
-    if (userRepository.existsByEmail(request.getEmail())) {
+    if (request.getEmail() != null && userRepository.existsByEmail(request.getEmail())) {
       throw new DuplicateException(ErrorCode.DUPLICATE_EMAIL);
     }
 
-    // 비밀번호 암호화 후 저장
     String encodedPassword = passwordEncoder.encode(request.getPassword());
     User user = request.toEntity(encodedPassword);
     User savedUser = userRepository.save(user);
@@ -54,29 +50,25 @@ public class AuthService {
   /** 로그인 */
   @Transactional
   public AuthResponse login(LoginRequest request) {
-    // 사용자 조회
     User user =
-        userRepository
-            .findByUsername(request.getUsername())
-            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
+            userRepository
+                    .findByUsername(request.getUsername())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
 
-    // 비밀번호 검증
     if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
       throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
     }
 
-    // 토큰 생성
     String accessToken =
-        jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+            jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
     String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getUsername());
 
-    // 기존 RefreshToken 삭제 후 새로 저장
     refreshTokenRepository.deleteByUserId(user.getId());
     refreshTokenRepository.save(
-        RefreshToken.builder().userId(user.getId()).token(refreshToken).build());
+            RefreshToken.builder().userId(user.getId()).token(refreshToken).build());
 
     return AuthResponse.of(
-        accessToken, refreshToken, jwtTokenProvider.getAccessTokenExpirationSeconds(), user);
+            accessToken, refreshToken, jwtTokenProvider.getAccessTokenExpirationSeconds(), user);
   }
 
   /** 토큰 갱신 */
@@ -84,35 +76,30 @@ public class AuthService {
   public AuthResponse refresh(TokenRefreshRequest request) {
     String requestToken = request.getRefreshToken();
 
-    // RefreshToken 유효성 검증
     if (!jwtTokenProvider.validateToken(requestToken)) {
       throw new BusinessException(ErrorCode.INVALID_TOKEN);
     }
 
-    // DB에서 RefreshToken 조회
     RefreshToken savedToken =
-        refreshTokenRepository
-            .findByToken(requestToken)
-            .orElseThrow(() -> new BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
+            refreshTokenRepository
+                    .findByToken(requestToken)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
 
-    // 사용자 조회
     User user =
-        userRepository
-            .findById(savedToken.getUserId())
-            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+            userRepository
+                    .findById(savedToken.getUserId())
+                    .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
 
-    // 새 AccessToken 발급
     String newAccessToken =
-        jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+            jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
 
     return AuthResponse.ofAccessToken(
-        newAccessToken, jwtTokenProvider.getAccessTokenExpirationSeconds());
+            newAccessToken, jwtTokenProvider.getAccessTokenExpirationSeconds());
   }
 
   /** 로그아웃 */
   @Transactional
   public void logout(Long userId) {
-    // RefreshToken 삭제
     refreshTokenRepository.deleteByUserId(userId);
   }
 }
