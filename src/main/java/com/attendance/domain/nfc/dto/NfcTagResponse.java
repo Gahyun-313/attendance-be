@@ -6,7 +6,6 @@ import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import net.bytebuddy.asm.Advice;
 
 /** NFC 태그 응답 DTO */
 @Getter

@@ -6,7 +6,7 @@ CREATE DATABASE IF NOT EXISTS attendance
     DEFAULT CHARACTER SET utf8mb4
     DEFAULT COLLATE utf8mb4_unicode_ci;
 
-USE attendance;
+USE attendance_db;
 
 -- =============================================
 -- 1. users 테이블
@@ -143,14 +143,14 @@ CREATE TABLE IF NOT EXISTS attendance_records (
 -- =============================================
 INSERT INTO users (username, password, email, name, role, password_changed, active, enabled, created_at, updated_at)
 VALUES (
-           'admin',
-           '$2a$10$7EqJtq98hPqEX7fNZaFWoOa9sJmE7zWF2E9G6YFhJyGqEbKMkDPEe',
-           'admin@attendance.com',
-           '관리자',
-           'ADMIN',
-           1,      -- 관리자는 비밀번호 변경 완료로 처리
-           1,
-           1,
-           NOW(),
-           NOW()
+            'admin',
+            '$2a$10$gxTvXgSH/32K7H5dzXia/.hCkTl3TtwUOOZsRlKRz44pPVH5guxTu',
+            'admin@attendance.com',
+            '관리자',
+            'ADMIN',
+            1,      -- 관리자는 비밀번호 변경 완료로 처리
+            1,
+            1,
+            NOW(),
+            NOW()
        );
