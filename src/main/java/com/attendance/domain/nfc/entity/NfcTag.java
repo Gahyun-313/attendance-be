@@ -10,38 +10,38 @@ import lombok.NoArgsConstructor;
 /** NFC 태그 엔티티 출석 체크에 사용되는 NFC 태그의 정보를 저장 */
 @Entity
 @Table(
-    name = "nfc_tags",
-    indexes = {
-      @Index(name = "idx_nfc_uid", columnList = "uid"), // UID로 빠른 조회
-      @Index(name = "idx_nfc_status", columnList = "status") // 상태별 조회
-    })
+        name = "nfc_tags",
+        indexes = {
+                @Index(name = "idx_nfc_uid", columnList = "uid"),
+                @Index(name = "idx_nfc_status", columnList = "status")
+        })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class NfcTag {
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  // NFC 태그의 고유 식별자 (UID) - AOS에서 읽은 NFC UID 값
   @Column(nullable = false, unique = true, length = 50)
   private String uid;
 
-  // NFC 태그 이름 (관리용)
   @Column(nullable = false, length = 100)
   private String name;
 
-  // NFC 태그 설명
   @Column(length = 255)
   private String description;
 
-  // NFC 태그가 설치된 위치
   @Column(length = 100)
   private String location;
 
-  // NFC 태그 상태
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 20)
   private NfcTagStatus status;
+
+  // 마지막 사용 시각 - 태그 대시보드(오늘 인식 횟수 등) 및 관리 화면에서 사용
+  @Column(name = "last_used_at")
+  private LocalDateTime lastUsedAt;
 
   @Column(name = "created_at", nullable = false, updatable = false)
   private LocalDateTime createdAt;
@@ -58,25 +58,29 @@ public class NfcTag {
     this.status = status != null ? status : NfcTagStatus.ACTIVE;
   }
 
-  // NFC 태그 정보 수정
+  @PrePersist
+  protected void onCreate() {
+    createdAt = LocalDateTime.now();
+    updatedAt = LocalDateTime.now();
+  }
+
+  @PreUpdate
+  protected void onUpdate() {
+    updatedAt = LocalDateTime.now();
+  }
+
   public void updateInfo(String name, String description, String location) {
     if (name != null) this.name = name;
     if (description != null) this.description = description;
     if (location != null) this.location = location;
   }
 
-  // NFC 태그 활성화
-  public void activate() {
-    this.status = NfcTagStatus.ACTIVE;
-  }
+  public void activate() { this.status = NfcTagStatus.ACTIVE; }
 
-  // NFC 태그 비활성화
-  public void deactivate() {
-    this.status = NfcTagStatus.INACTIVE;
-  }
+  public void deactivate() { this.status = NfcTagStatus.INACTIVE; }
 
-  // NFC 태그가 활성 상태인지 확인
-  public boolean isActive() {
-    return this.status == NfcTagStatus.ACTIVE;
-  }
+  public boolean isActive() { return this.status == NfcTagStatus.ACTIVE; }
+
+  // 태그 사용 시각 기록 - 출석 체크 시 해당 태그가 스캔될 때마다 호출
+  public void markUsed() { this.lastUsedAt = LocalDateTime.now(); }
 }
