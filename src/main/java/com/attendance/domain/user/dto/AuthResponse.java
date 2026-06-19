@@ -52,6 +52,7 @@ public class AuthResponse {
     private String username; // 사용자 아이디
     private String name; // 사용자 이름
     private String role; // 사용자 권한
+    private Boolean passwordChanged; // 최초 로그인 시 pw 변경 안내 여부 판단에 사용
 
     // User 엔티티를 UserInfo DTO로 변환
     public static UserInfo from(User user) {
@@ -60,6 +61,7 @@ public class AuthResponse {
           .username(user.getUsername())
           .name(user.getName())
           .role(user.getRole().name()) // Enum을 String으로 변환
+          .passwordChanged(user.getPasswordChanged())
           .build();
     }
   }

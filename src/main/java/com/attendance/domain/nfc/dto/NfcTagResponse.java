@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import net.bytebuddy.asm.Advice;
 
 /** NFC 태그 응답 DTO */
 @Getter
@@ -19,6 +20,7 @@ public class NfcTagResponse {
   private String description;
   private String location;
   private NfcTagStatus status;
+  private LocalDateTime lastUsedAt;
   private LocalDateTime createdAt;
   private LocalDateTime updatedAt;
 
@@ -31,6 +33,7 @@ public class NfcTagResponse {
         .description(nfcTag.getDescription())
         .location(nfcTag.getLocation())
         .status(nfcTag.getStatus())
+        .lastUsedAt(nfcTag.getLastUsedAt())
         .createdAt(nfcTag.getCreatedAt())
         .updatedAt(nfcTag.getUpdatedAt())
         .build();
