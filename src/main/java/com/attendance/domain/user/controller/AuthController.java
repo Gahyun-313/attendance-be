@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /** 인증 API Controller */
 @RestController
@@ -27,6 +28,7 @@ public class AuthController {
   private final AuthService authService;
 
   /** 회원가입 POST /api/auth/signup */
+  @PreAuthorize("hasRole('ADMIN')")
   @PostMapping("/signup")
   public ResponseEntity<ApiResponse<UserResponse>> signup(
       @Valid @RequestBody SignupRequest request) {
