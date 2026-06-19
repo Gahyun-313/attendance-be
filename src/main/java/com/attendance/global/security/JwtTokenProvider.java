@@ -28,15 +28,15 @@ public class JwtTokenProvider {
 
   /** 생성자 : application.yml의 JWT 설정을 주입받아 초기화 */
   public JwtTokenProvider(
-      // application.yml의 jwt secret 값
-      // -> UTF-8 바이트 배열로 변환 후 HMAC-SHA256 전용 SecretKey 객체 생성
-      // -> 실제 운영 환경에서는 환경변수/Vault로 관리
-      @Value("${jwt.secret}") String secret,
-      @Value("${jwt.access-token-expiration}")
+          // application.yml의 jwt secret 값
+          // -> UTF-8 바이트 배열로 변환 후 HMAC-SHA256 전용 SecretKey 객체 생성
+          // -> 실제 운영 환경에서는 환경변수/Vault로 관리
+          @Value("${jwt.secret}") String secret,
+          @Value("${jwt.access-token-expiration}")
           long accessTokenExpiration, // Access Token 유효 기간 (밀리 초)
-      @Value("${jwt.refresh-token-expiration}")
+          @Value("${jwt.refresh-token-expiration}")
           long refreshTokenExpiration // Refresh Token 유효 기간 (밀리 초)
-      ) {
+  ) {
     // Secret Key를 HMAC-SHA256용 SecretKey 객체로 변환
     // UTF-8 바이트 배열로 변환 후 Keys.hmacShaKeyFor()로 키 생성
     this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
@@ -47,19 +47,20 @@ public class JwtTokenProvider {
   // ------------------------------------------------
   // 2. 토큰 생성 (Access / Refresh)
   // ------------------------------------------------
+
   /** Access Token 생성 */
   public String createAccessToken(Long userId, String username, String role) {
     Date now = new Date();
     Date validity = new Date(now.getTime() + accessTokenExpiration); // 만료 시간 = 현재 + 유효기간
 
     return Jwts.builder()
-        .subject(username) // sub: Spring Security principal로 사용되는 사용자명
-        .claim("userId", userId)
-        .claim("role", role)
-        .issuedAt(now) // iat: 발행 시간
-        .expiration(validity) // exp: 만료 시간
-        .signWith(secretKey) // HMAC-SHA256으로 서명 (secretKey 타입에서 알고리즘 자동 결정)
-        .compact(); // header.payload.signature 형태의 문자열로 직렬화
+            .subject(username) // sub: Spring Security principal로 사용되는 사용자명
+            .claim("userId", userId)
+            .claim("role", role)
+            .issuedAt(now) // iat: 발행 시간
+            .expiration(validity) // exp: 만료 시간
+            .signWith(secretKey) // HMAC-SHA256으로 서명 (secretKey 타입에서 알고리즘 자동 결정)
+            .compact(); // header.payload.signature 형태의 문자열로 직렬화
   }
 
   /** Refresh Token 생성 */
@@ -69,12 +70,12 @@ public class JwtTokenProvider {
     Date validity = new Date(now.getTime() + refreshTokenExpiration);
 
     return Jwts.builder()
-        .subject(username)
-        .claim("userId", userId)
-        .issuedAt(now)
-        .expiration(validity)
-        .signWith(secretKey)
-        .compact();
+            .subject(username)
+            .claim("userId", userId)
+            .issuedAt(now)
+            .expiration(validity)
+            .signWith(secretKey)
+            .compact();
   }
 
   // ------------------------------------------------
@@ -101,6 +102,11 @@ public class JwtTokenProvider {
   // AuthService에서 @Value 없이 만료 시간 사용하기 위한 메서드
   public long getAccessTokenExpirationSeconds() {
     return accessTokenExpiration / 1000;
+  }
+
+  // RefreshToken 엔티티의 expiresAt 세팅에 사용
+  public long getRefreshTokenExpirationSeconds() {
+    return refreshTokenExpiration / 1000;
   }
 
   // ------------------------------------------------
@@ -154,15 +160,15 @@ public class JwtTokenProvider {
    * 토큰 파싱 및 Claims 반환 (내부 공통 메서드) - 모든 토큰 정보 추출 메서드와 검증 메서드에서 공통으로 사용
    *
    * <p>[처리 순서] 1. verifyWith(secretKey): HMAC-SHA256으로 서명 검증 2. parseSignedClaims(token): Base64
-   * 디코딩 후 파싱 3. getPayload(): 검증된 Claims 객체 반환
+   * 디코딩 후 파싱 3. getPayload(): 검증된 Claims(payload) 반환
    *
    * <p>- private로 선언하여 외부에서 직접 호출 불가 - 예외는 호출한 public 메서드에서 처리
    */
   private Claims parseClaims(String token) {
     return Jwts.parser()
-        .verifyWith(secretKey) // 서명 검증에 사용할 키 설정
-        .build()
-        .parseSignedClaims(token) // 서명 검증 + 파싱 동시 수행
-        .getPayload(); // 검증된 Claims(payload) 반환
+            .verifyWith(secretKey) // 서명 검증에 사용할 키 설정
+            .build()
+            .parseSignedClaims(token) // 서명 검증 + 파싱 동시 수행
+            .getPayload(); // 검증된 Claims(payload) 반환
   }
 }
