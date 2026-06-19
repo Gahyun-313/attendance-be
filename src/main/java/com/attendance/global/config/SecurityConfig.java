@@ -79,7 +79,7 @@ public class SecurityConfig {
             auth ->
                 auth
                     // Public API : 인증 불필요
-                    .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/refresh")
+                    .requestMatchers("/api/auth/login", "/api/auth/refresh")
                     .permitAll()
 
                     // ADMIN 전용 API
