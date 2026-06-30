@@ -2,6 +2,9 @@ package com.attendance.domain.session.entity;
 
 import com.attendance.domain.nfc.entity.NfcTag;
 import com.attendance.domain.session.SessionStatus;
+import com.attendance.domain.session.dto.SessionRequest;
+import com.attendance.global.exception.BusinessException;
+import com.attendance.global.exception.ErrorCode;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -90,5 +93,48 @@ public class AttendanceSession {
   /** 주어진 시간이 지각인지 확인 */
   public boolean isLate(LocalDateTime checkInTime) {
     return checkInTime.isAfter(startTime.plusMinutes(lateThresholdMinutes));
+  }
+
+  /** 세션 정보 수정 */
+  public void update(SessionRequest request, NfcTag nfcTag) {
+    this.title = request.getTitle();
+    this.description = request.getDescription();
+    this.groupName = request.getGroupName();
+    this.sessionDate =
+            request.getSessionDate() != null
+                    ? request.getSessionDate()
+                    : request.getStartTime().toLocalDate();
+    this.startTime = request.getStartTime();
+    this.endTime = request.getEndTime();
+    if (request.getLateThresholdMinutes() != null) {
+      this.lateThresholdMinutes = request.getLateThresholdMinutes();
+    }
+    this.location = request.getLocation();
+    this.nfcTag = nfcTag;
+    this.note = request.getNote();
+  }
+
+  /** 세션 시작 - SCHEDULED → ACTIVE */
+  public void start() {
+    if (this.status != SessionStatus.SCHEDULED) {
+      throw new BusinessException(ErrorCode.SESSION_NOT_ACTIVE);
+    }
+    this.status = SessionStatus.ACTIVE;
+  }
+
+  /** 세션 종료 - ACTIVE → COMPLETED */
+  public void close() {
+    if (this.status != SessionStatus.ACTIVE) {
+      throw new BusinessException(ErrorCode.SESSION_NOT_ACTIVE);
+    }
+    this.status = SessionStatus.COMPLETED;
+  }
+
+  /** 세션 취소 */
+  public void cancel() {
+    if (this.status == SessionStatus.COMPLETED || this.status == SessionStatus.CANCELED) {
+      throw new BusinessException(ErrorCode.SESSION_ALREADY_CLOSED);
+    }
+    this.status = SessionStatus.CANCELED;
   }
 }
