@@ -34,23 +34,23 @@ public class AttendanceResponse {
      * 엔티티 + User를 Response로 변환.
      * user가 null이면 사용자 정보 필드는 null로 둔다 (레코드는 있으나 사용자 조회 실패 등 방어).
      */
-    public static AttendanceResponse from(AttendanceRecord record, User user) {
+    public static AttendanceResponse from(AttendanceRecord attendanceRecord, User user) {
         return AttendanceResponse.builder()
-                .id(record.getId())
-                .userId(record.getUserId())
+                .id(attendanceRecord.getId())
+                .userId(attendanceRecord.getUserId())
                 .userName(user != null ? user.getName() : null)
                 .studentId(user != null ? user.getStudentId() : null)
                 .groupName(user != null ? user.getGroupName() : null)
-                .sessionId(record.getSessionId())
-                .status(record.getStatus())
-                .checkInTime(record.getCheckInTime())
-                .nfcTagUid(record.getNfcTagUid())
-                .nfcLocation(record.getNfcLocation())
-                .modifiedBy(record.getModifiedBy())
-                .modifyReason(record.getModifyReason())
-                .note(record.getNote())
-                .createdAt(record.getCreatedAt())
-                .updatedAt(record.getUpdatedAt())
+                .sessionId(attendanceRecord.getSessionId())
+                .status(attendanceRecord.getStatus())
+                .checkInTime(attendanceRecord.getCheckInTime())
+                .nfcTagUid(attendanceRecord.getNfcTagUid())
+                .nfcLocation(attendanceRecord.getNfcLocation())
+                .modifiedBy(attendanceRecord.getModifiedBy())
+                .modifyReason(attendanceRecord.getModifyReason())
+                .note(attendanceRecord.getNote())
+                .createdAt(attendanceRecord.getCreatedAt())
+                .updatedAt(attendanceRecord.getUpdatedAt())
                 .build();
     }
 }
