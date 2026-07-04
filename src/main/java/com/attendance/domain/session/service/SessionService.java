@@ -2,6 +2,7 @@ package com.attendance.domain.session.service;
 
 import com.attendance.domain.nfc.entity.NfcTag;
 import com.attendance.domain.nfc.repository.NfcTagRepository;
+import com.attendance.domain.attendance.service.AttendanceService;
 import com.attendance.domain.session.SessionStatus;
 import com.attendance.domain.session.dto.SessionRequest;
 import com.attendance.domain.session.dto.SessionResponse;
@@ -25,6 +26,7 @@ public class SessionService {
 
     private final SessionRepository sessionRepository;
     private final NfcTagRepository nfcTagRepository;
+    private final AttendanceService attendanceService;
 
     /** 세션 생성 */
     @Transactional
@@ -83,19 +85,21 @@ public class SessionService {
         sessionRepository.deleteById(sessionId);
     }
 
-    /** 세션 시작 */
+    /** 세션 시작 - SCHEDULED → ACTIVE, 대상 그룹 학생 전원에게 WAITING 레코드 사전 생성 */
     @Transactional
     public SessionResponse startSession(Long sessionId) {
         AttendanceSession session = findSessionById(sessionId);
         session.start();
+        attendanceService.initializeWaitingRecords(session);
         return SessionResponse.from(session);
     }
 
-    /** 세션 종료 */
+    /** 세션 종료 - ACTIVE → COMPLETED, 남은 WAITING 레코드를 결석(ABSENT)으로 일괄 처리 */
     @Transactional
     public SessionResponse closeSession(Long sessionId) {
         AttendanceSession session = findSessionById(sessionId);
         session.close();
+        attendanceService.markAbsentForRemainingWaiting(sessionId);
         return SessionResponse.from(session);
     }
 
