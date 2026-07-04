@@ -106,4 +106,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
    * (AttendanceService.getSessionDashboard)
    */
   long countByRoleAndGroupName(UserRole role, String groupName);
+
+  /** 역할별 전체 사용자 수 - 전체 통계(overall)의 전체 학생 수 집계용 */
+  long countByRole(UserRole role);
 }
