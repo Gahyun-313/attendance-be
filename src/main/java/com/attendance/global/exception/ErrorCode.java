@@ -26,6 +26,8 @@ public enum ErrorCode {
   USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "사용자를 찾을 수 없습니다"),
   DUPLICATE_USERNAME(HttpStatus.CONFLICT, "U002", "이미 존재하는 아이디입니다"),
   DUPLICATE_EMAIL(HttpStatus.CONFLICT, "U003", "이미 존재하는 이메일입니다"),
+  INACTIVE_USER(HttpStatus.BAD_REQUEST, "U004", "비활성화된 사용자입니다"),
+  PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "U005", "현재 비밀번호가 일치하지 않습니다"),
 
   // NFC 태그
   NFC_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "N001", "NFC 태그를 찾을 수 없습니다"),
