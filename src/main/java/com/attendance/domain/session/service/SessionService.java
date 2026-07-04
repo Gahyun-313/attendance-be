@@ -85,10 +85,26 @@ public class SessionService {
         sessionRepository.deleteById(sessionId);
     }
 
-    /** 세션 시작 - SCHEDULED → ACTIVE, 대상 그룹 학생 전원에게 WAITING 레코드 사전 생성 */
+    /**
+     * 세션 시작 - SCHEDULED → ACTIVE, 대상 그룹 학생 전원에게 WAITING 레코드 사전 생성
+     * - 동일 NFC 태그를 사용하는 다른 세션이 이미 ACTIVE면 시작 차단
+     *   (체크인 시 태그→세션 역추적이 모호해지는 것을 방지, findActiveSessionsByNfcTagId 참고)
+     */
     @Transactional
     public SessionResponse startSession(Long sessionId) {
         AttendanceSession session = findSessionById(sessionId);
+
+        if (session.getNfcTag() != null) {
+            boolean tagAlreadyInUse =
+                    sessionRepository
+                            .findByNfcTagIdAndStatus(session.getNfcTag().getId(), SessionStatus.ACTIVE)
+                            .stream()
+                            .anyMatch(other -> !other.getId().equals(sessionId));
+            if (tagAlreadyInUse) {
+                throw new BusinessException(ErrorCode.NFC_TAG_ALREADY_IN_USE);
+            }
+        }
+
         session.start();
         attendanceService.initializeWaitingRecords(session);
         return SessionResponse.from(session);

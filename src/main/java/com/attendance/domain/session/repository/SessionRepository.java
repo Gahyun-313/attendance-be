@@ -40,8 +40,8 @@ public interface SessionRepository extends JpaRepository<AttendanceSession, Long
 
     /**
      * NFC 태그 ID로 현재 활성 세션 조회 - 학생 체크인 시 태그에 연결된 진행 중 세션 역추적에 사용.
-     * 정상 운영 시 동일 태그에 동시에 ACTIVE인 세션은 1개여야 하지만,
-     * 설정 오류로 다수가 잡힐 경우를 대비해 List로 반환하고 서비스에서 첫 번째를 사용한다.
+     * 정상 운영 시 동일 태그에 동시에 ACTIVE인 세션은 1개여야 하며(SessionService.startSession에서 검증),
+     * 혹시 다수가 잡히는 경우를 대비해 startTime 내림차순 정렬 후 서비스에서 첫 번째(가장 최근 시작된 세션)를 사용한다.
      */
     @Query("""
       SELECT s FROM AttendanceSession s
@@ -49,6 +49,13 @@ public interface SessionRepository extends JpaRepository<AttendanceSession, Long
       AND s.status = 'ACTIVE'
       AND s.startTime <= CURRENT_TIMESTAMP
       AND s.endTime >= CURRENT_TIMESTAMP
+      ORDER BY s.startTime DESC
       """)
     List<AttendanceSession> findActiveSessionsByNfcTagId(@Param("nfcTagId") Long nfcTagId);
+
+    /**
+     * 태그ID + 상태로 세션 조회 - 세션 시작(startSession) 시 동일 NFC 태그를 사용하는 다른 ACTIVE 세션이
+     * 있는지 검증할 때 사용 (중복 활성 세션 방지)
+     */
+    List<AttendanceSession> findByNfcTagIdAndStatus(Long nfcTagId, SessionStatus status);
 }

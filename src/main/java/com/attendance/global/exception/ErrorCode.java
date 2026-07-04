@@ -39,6 +39,7 @@ public enum ErrorCode {
   SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "S001", "출석 세션을 찾을 수 없습니다"),
   SESSION_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "S002", "활성화된 세션이 아닙니다"),
   SESSION_ALREADY_CLOSED(HttpStatus.BAD_REQUEST, "S003", "이미 종료된 세션입니다"),
+  NFC_TAG_ALREADY_IN_USE(HttpStatus.CONFLICT, "S004", "해당 NFC 태그가 이미 다른 활성 세션에서 사용 중입니다"),
 
   // 출석 기록
   ATTENDANCE_NOT_FOUND(HttpStatus.NOT_FOUND, "AT001", "출석 기록을 찾을 수 없습니다"),
