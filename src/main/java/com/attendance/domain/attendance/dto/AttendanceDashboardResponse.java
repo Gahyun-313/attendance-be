@@ -6,8 +6,8 @@ import lombok.Getter;
 
 /**
  * 세션별 출석 대시보드 응답 DTO.
- * 주의: totalRecords는 "출석 레코드 수" 기준. 실제 "대상자 수"는 그룹 멤버 기준이라
- * UserRepository(Day 3) 연동 후 정확해짐. 현재 출석률은 레코드 기반 근사치.
+ * targetCount는 세션의 groupName 기준 대상 학생 수(UserRepository 연동, Day 3),
+ * totalRecords는 실제 생성된 출석 레코드 수(WAITING 포함). 그룹 미지정 세션은 targetCount를 totalRecords로 근사한다.
  */
 @Getter
 @Builder
@@ -15,19 +15,22 @@ import lombok.Getter;
 public class AttendanceDashboardResponse {
 
     private Long sessionId;
+    private long targetCount;   // 대상자 수 (세션 groupName 기준 학생 수, 그룹 미지정 시 totalRecords로 근사)
     private long totalRecords; // 해당 세션의 전체 출석 레코드 수
     private long present;       // 출석 수
     private long late;          // 지각 수
     private long absent;        // 결석 수
     private long waiting;       // 대기 수
-    private double attendanceRate; // (출석 + 지각) / 전체 레코드 * 100 (소수 1자리)
+    private double attendanceRate; // (출석 + 지각) / 대상자 수(targetCount) * 100 (소수 1자리)
 
     public static AttendanceDashboardResponse of(
-            Long sessionId, long total, long present, long late, long absent, long waiting) {
-        // 레코드가 0건이면 0%, 아니면 (출석+지각)/전체 비율을 소수 1자리로 반올림
-        double rate = total == 0 ? 0.0 : Math.round((present + late) * 1000.0 / total) / 10.0;
+            Long sessionId, long targetCount, long total, long present, long late, long absent, long waiting) {
+        // 출석률 산출 기준: targetCount가 있으면 그 기준, 없으면(그룹 미지정 세션) totalRecords로 근사
+        long base = targetCount > 0 ? targetCount : total;
+        double rate = base == 0 ? 0.0 : Math.round((present + late) * 1000.0 / base) / 10.0;
         return AttendanceDashboardResponse.builder()
                 .sessionId(sessionId)
+                .targetCount(targetCount)
                 .totalRecords(total)
                 .present(present)
                 .late(late)
