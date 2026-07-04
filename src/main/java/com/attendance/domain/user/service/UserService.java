@@ -12,6 +12,7 @@ import com.attendance.global.exception.DuplicateException;
 import com.attendance.global.exception.EntityNotFoundException;
 import com.attendance.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -62,6 +63,13 @@ public class UserService {
         User user =
                 userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
         return UserResponse.from(user);
+    }
+
+    /**
+     * 존재하는 그룹명 목록 조회 (ADMIN 전용) GET /api/users/groups - 어드민 웹에서 세션 생성 시 그룹 선택 드롭다운 등에 활용
+     */
+    public List<String> getGroups() {
+        return userRepository.findDistinctGroupNames(UserRole.STUDENT);
     }
 
     /** 내 정보 조회 (본인 전용) GET /api/users/me */

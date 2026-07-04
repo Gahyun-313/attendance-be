@@ -8,6 +8,7 @@ import com.attendance.domain.user.service.UserService;
 import com.attendance.global.response.ApiResponse;
 import com.attendance.global.security.CustomUserDetails;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -53,6 +54,18 @@ public class UserController {
             Pageable pageable) {
         Page<UserResponse> response = userService.getUsers(groupName, keyword, pageable);
         return ResponseEntity.ok(ApiResponse.success(response, "사용자 목록 조회 성공"));
+    }
+
+    /**
+     * 존재하는 그룹명 목록 조회 GET /api/users/groups - ADMIN 전용
+     * - 세션 생성 시 그룹 선택 드롭다운 등에 활용
+     * - 고정 경로 세그먼트라 GET /api/users/{userId}와 충돌 없음 (Spring이 더 구체적인 패턴을 우선 매칭)
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/groups")
+    public ResponseEntity<ApiResponse<List<String>>> getGroups() {
+        List<String> response = userService.getGroups();
+        return ResponseEntity.ok(ApiResponse.success(response, "그룹 목록 조회 성공"));
     }
 
     /**
