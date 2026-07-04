@@ -12,6 +12,7 @@ import com.attendance.domain.nfc.repository.NfcTagRepository;
 import com.attendance.domain.session.entity.AttendanceSession;
 import com.attendance.domain.session.repository.SessionRepository;
 import com.attendance.domain.user.entity.User;
+import com.attendance.domain.user.entity.UserRole;
 import com.attendance.domain.user.repository.UserRepository;
 import com.attendance.global.exception.BusinessException;
 import com.attendance.global.exception.DuplicateException;
@@ -40,8 +41,10 @@ public class AttendanceService {
 
     /**
      * 출석 체크인 (STUDENT)
-     * 흐름: NFC UID 검증 → 활성 세션 역추적 → 중복 방지 → 지각 판정 → 레코드 저장
+     * 흐름: NFC UID 검증 → 활성 세션 역추적 → 지각 판정 → 레코드 갱신/생성
      *      + 태그 사용시각/사용자 첫 출석시각 갱신
+     * - 세션 시작 시 사전 생성된 WAITING 레코드가 있으면 그걸 갱신하고, 없으면(그룹 미지정 세션 등) 새로 생성한다.
+     * - 이미 PRESENT/LATE/ABSENT로 처리된 레코드가 있으면 중복 출석으로 간주해 예외.
      */
     @Transactional
     public AttendanceResponse checkIn(Long userId, CheckInRequest request) {
@@ -61,30 +64,37 @@ public class AttendanceService {
                         .findFirst()
                         .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_ACTIVE));
 
-        // 3. 중복 출석 방지 (애플리케이션 레벨 1차 방어, 최종 보장은 DB user_id+session_id Unique 제약)
-        //    동시 요청 동시성 제어(분산 락)는 Day 6 예정
-        if (attendanceRepository.existsByUserIdAndSessionId(userId, session.getId())) {
-            throw new DuplicateException(ErrorCode.DUPLICATE_ATTENDANCE);
-        }
-
-        // 4. 출석/지각 판정 - session.isLate() 기준
+        // 3. 출석/지각 판정 - session.isLate() 기준
         LocalDateTime checkInTime = LocalDateTime.now();
         AttendanceStatus status =
                 session.isLate(checkInTime) ? AttendanceStatus.LATE : AttendanceStatus.PRESENT;
 
-        // 5. 출석 레코드 생성 (스캔 당시 태그 위치를 함께 보존)
-        AttendanceRecord record =
-                AttendanceRecord.builder()
-                        .userId(userId)
-                        .sessionId(session.getId())
-                        .status(status)
-                        .checkInTime(checkInTime)
-                        .nfcTagUid(nfcTag.getUid())
-                        .nfcLocation(nfcTag.getLocation())
-                        .build();
-        AttendanceRecord saved = attendanceRepository.save(record);
+        // 4. 기존 레코드(WAITING 사전 등록분) 갱신, 없으면 신규 생성
+        //    이미 PRESENT/LATE/ABSENT면 중복 출석 (애플리케이션 레벨 1차 방어, 최종 보장은 DB Unique 제약)
+        //    동시 요청 동시성 제어(분산 락)는 Day 6 예정
+        AttendanceRecord attendanceRecord =
+                attendanceRepository
+                        .findByUserIdAndSessionId(userId, session.getId())
+                        .map(existing -> {
+                            if (existing.getStatus() != AttendanceStatus.WAITING) {
+                                throw new DuplicateException(ErrorCode.DUPLICATE_ATTENDANCE);
+                            }
+                            existing.checkIn(status, checkInTime, nfcTag.getUid(), nfcTag.getLocation());
+                            return existing;
+                        })
+                        .orElseGet(
+                                () ->
+                                        attendanceRepository.save(
+                                                AttendanceRecord.builder()
+                                                        .userId(userId)
+                                                        .sessionId(session.getId())
+                                                        .status(status)
+                                                        .checkInTime(checkInTime)
+                                                        .nfcTagUid(nfcTag.getUid())
+                                                        .nfcLocation(nfcTag.getLocation())
+                                                        .build()));
 
-        // 6. 부가 처리 - 더티 체킹으로 반영됨 (같은 트랜잭션 내 managed 엔티티)
+        // 5. 부가 처리 - 더티 체킹으로 반영됨 (같은 트랜잭션 내 managed 엔티티)
         nfcTag.markUsed(); // 태그 마지막 사용시각 갱신
         User user =
                 userRepository
@@ -92,7 +102,7 @@ public class AttendanceService {
                         .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
         user.recordFirstAttendanceIfAbsent(checkInTime); // 사용자 첫 출석 시각 기록
 
-        return AttendanceResponse.from(saved, user);
+        return AttendanceResponse.from(attendanceRecord, user);
     }
 
     /** 내 출석 기록 조회 (STUDENT, 페이징) */
@@ -104,7 +114,7 @@ public class AttendanceService {
         // 본인 기록이므로 User는 1회만 조회해 재사용
         return attendanceRepository
                 .findByUserId(userId, pageable)
-                .map(record -> AttendanceResponse.from(record, user));
+                .map(attendanceRecord -> AttendanceResponse.from(attendanceRecord, user));
     }
 
     /** 세션별 출석 현황 조회 (ADMIN) */
@@ -121,7 +131,7 @@ public class AttendanceService {
                         .collect(Collectors.toMap(User::getId, user -> user));
 
         return records.stream()
-                .map(record -> AttendanceResponse.from(record, userMap.get(record.getUserId())))
+                .map(attendanceRecord -> AttendanceResponse.from(attendanceRecord, userMap.get(attendanceRecord.getUserId())))
                 .toList();
     }
 
@@ -129,16 +139,16 @@ public class AttendanceService {
     @Transactional
     public AttendanceResponse updateStatus(
             Long attendanceId, AttendanceStatusUpdateRequest request, String modifiedBy) {
-        AttendanceRecord record =
+        AttendanceRecord attendanceRecord =
                 attendanceRepository
                         .findById(attendanceId)
                         .orElseThrow(() -> new EntityNotFoundException(ErrorCode.ATTENDANCE_NOT_FOUND));
 
         // 도메인 메서드로 상태 변경 (누가/왜 바꿨는지 함께 기록)
-        record.modifyStatus(request.getStatus(), modifiedBy, request.getModifyReason());
+        attendanceRecord.modifyStatus(request.getStatus(), modifiedBy, request.getModifyReason());
 
-        User user = userRepository.findById(record.getUserId()).orElse(null);
-        return AttendanceResponse.from(record, user);
+        User user = userRepository.findById(attendanceRecord.getUserId()).orElse(null);
+        return AttendanceResponse.from(attendanceRecord, user);
     }
 
     /** 출석 기록 삭제 (ADMIN) */
@@ -150,17 +160,63 @@ public class AttendanceService {
         attendanceRepository.deleteById(attendanceId);
     }
 
-    /** 세션별 출석 대시보드 (ADMIN) - 상태별 레코드 수 집계 */
+    /**
+     * 세션별 출석 대시보드 (ADMIN) - 상태별 레코드 수 + 대상자 수(targetCount) 집계
+     * - targetCount: 세션 groupName 기준 STUDENT 수. 그룹 미지정 세션은 totalRecords로 근사(AttendanceDashboardResponse에서 처리)
+     */
     public AttendanceDashboardResponse getSessionDashboard(Long sessionId) {
-        if (!sessionRepository.existsById(sessionId)) {
-            throw new EntityNotFoundException(ErrorCode.SESSION_NOT_FOUND);
-        }
+        AttendanceSession session =
+                sessionRepository
+                        .findById(sessionId)
+                        .orElseThrow(() -> new EntityNotFoundException(ErrorCode.SESSION_NOT_FOUND));
+
         long total = attendanceRepository.countBySessionId(sessionId);
         long present = attendanceRepository.countBySessionIdAndStatus(sessionId, AttendanceStatus.PRESENT);
         long late = attendanceRepository.countBySessionIdAndStatus(sessionId, AttendanceStatus.LATE);
         long absent = attendanceRepository.countBySessionIdAndStatus(sessionId, AttendanceStatus.ABSENT);
         long waiting = attendanceRepository.countBySessionIdAndStatus(sessionId, AttendanceStatus.WAITING);
+        long targetCount =
+                session.getGroupName() != null
+                        ? userRepository.countByRoleAndGroupName(UserRole.STUDENT, session.getGroupName())
+                        : 0L;
 
-        return AttendanceDashboardResponse.of(sessionId, total, present, late, absent, waiting);
+        return AttendanceDashboardResponse.of(sessionId, targetCount, total, present, late, absent, waiting);
+    }
+
+    /**
+     * 세션 시작 시 대상 그룹 학생 전원에게 WAITING 레코드 사전 생성 (SessionService.startSession에서 호출)
+     * - 그룹 미지정 세션(groupName == null)은 사전 등록 대상이 없으므로 스킵
+     * - 이미 레코드가 있는 사용자는 건너뜀 (재시작 등으로 중복 호출되어도 안전)
+     */
+    @Transactional
+    public void initializeWaitingRecords(AttendanceSession session) {
+        if (session.getGroupName() == null) {
+            return;
+        }
+        List<User> targets =
+                userRepository.findByRoleAndGroupName(UserRole.STUDENT, session.getGroupName());
+        for (User target : targets) {
+            if (!attendanceRepository.existsByUserIdAndSessionId(target.getId(), session.getId())) {
+                attendanceRepository.save(
+                        AttendanceRecord.builder()
+                                .userId(target.getId())
+                                .sessionId(session.getId())
+                                .status(AttendanceStatus.WAITING)
+                                .build());
+            }
+        }
+    }
+
+    /**
+     * 세션 종료 시 아직 체크인하지 않은(WAITING) 레코드를 결석(ABSENT)으로 일괄 처리
+     * (SessionService.closeSession에서 호출)
+     */
+    @Transactional
+    public void markAbsentForRemainingWaiting(Long sessionId) {
+        List<AttendanceRecord> waitingRecords =
+                attendanceRepository.findBySessionIdAndStatus(sessionId, AttendanceStatus.WAITING);
+        for (AttendanceRecord attendanceRecord : waitingRecords) {
+            attendanceRecord.modifyStatus(AttendanceStatus.ABSENT, "SYSTEM", "세션 종료 시 자동 결석 처리");
+        }
     }
 }
