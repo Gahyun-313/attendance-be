@@ -163,4 +163,18 @@ public class User implements UserDetails {
   public void deactivate() {
     this.active = false;
   }
+
+  /** 사용자 정보 수정 - null인 필드는 변경하지 않음 (부분 수정 지원) */
+  public void updateInfo(String name, String email, String groupName, String note) {
+    if (name != null) this.name = name;
+    if (email != null) this.email = email;
+    if (groupName != null) this.groupName = groupName;
+    if (note != null) this.note = note;
+  }
+
+  /** 비밀번호 변경 - 암호화된 비밀번호를 받아 갱신하고, 최초 비밀번호 변경 여부를 true로 표시 */
+  public void changePassword(String encodedPassword) {
+    this.password = encodedPassword;
+    this.passwordChanged = true;
+  }
 }
