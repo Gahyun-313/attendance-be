@@ -3,6 +3,7 @@ package com.attendance.domain.attendance.repository;
 import com.attendance.domain.attendance.entity.AttendanceRecord;
 import com.attendance.domain.attendance.entity.AttendanceStatus;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,10 +12,16 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AttendanceRepository extends JpaRepository<AttendanceRecord, Long> {
 
     /**
-     * 중복 출석 방지 - 체크인 전 동일 user+session 레코드 존재 여부 확인.
+     * 중복 출석 방지 - WAITING 사전 등록 레코드 생성 전 동일 user+session 레코드 존재 여부 확인.
      * (DB의 user_id+session_id Unique 제약과 함께 애플리케이션 레벨 1차 방어)
      */
     boolean existsByUserIdAndSessionId(Long userId, Long sessionId);
+
+    /**
+     * user+session으로 기존 출석 레코드 조회 - 체크인 시 사용.
+     * WAITING 상태로 사전 등록된 레코드가 있으면 그걸 갱신하고, 없으면 신규 생성한다 (AttendanceService.checkIn 참고).
+     */
+    Optional<AttendanceRecord> findByUserIdAndSessionId(Long userId, Long sessionId);
 
     /**
      * 내 출석 기록 조회 (페이징) - 앱 "내역" 화면용.
@@ -25,6 +32,12 @@ public interface AttendanceRepository extends JpaRepository<AttendanceRecord, Lo
 
     /** 세션별 출석 현황 조회 (관리자) - 한 세션의 전체 출석 레코드 */
     List<AttendanceRecord> findBySessionId(Long sessionId);
+
+    /**
+     * 세션별 + 특정 상태의 출석 레코드 목록 조회 - 세션 종료 시 남은 WAITING 레코드를 찾아 ABSENT로 일괄 처리할 때 사용
+     * (AttendanceService.markAbsentForRemainingWaiting)
+     */
+    List<AttendanceRecord> findBySessionIdAndStatus(Long sessionId, AttendanceStatus status);
 
     /** 세션별 전체 출석 레코드 수 - 대시보드 집계용 */
     long countBySessionId(Long sessionId);
