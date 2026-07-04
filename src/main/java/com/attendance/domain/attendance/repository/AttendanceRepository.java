@@ -44,4 +44,13 @@ public interface AttendanceRepository extends JpaRepository<AttendanceRecord, Lo
 
     /** 세션별 특정 상태 레코드 수 - 대시보드(출석/지각/결석/대기 수) 집계용 */
     long countBySessionIdAndStatus(Long sessionId, AttendanceStatus status);
+
+    /** 전체 상태별 레코드 수 - 전체 통계(overall)의 누적 출석/지각/결석/대기 건수 집계용 */
+    long countByStatus(AttendanceStatus status);
+
+    /** 사용자별 전체 출석 레코드 수 - 사용자 통계(user/me)의 총 참여 건수 집계용 */
+    long countByUserId(Long userId);
+
+    /** 사용자별 특정 상태 레코드 수 - 사용자 통계의 출석/지각/결석 건수 집계용 */
+    long countByUserIdAndStatus(Long userId, AttendanceStatus status);
 }

@@ -58,4 +58,22 @@ public interface SessionRepository extends JpaRepository<AttendanceSession, Long
      * 있는지 검증할 때 사용 (중복 활성 세션 방지)
      */
     List<AttendanceSession> findByNfcTagIdAndStatus(Long nfcTagId, SessionStatus status);
+
+    /** 날짜별 세션 수 - 대시보드 통계(오늘 세션 수)에 사용 */
+    long countBySessionDate(LocalDate sessionDate);
+
+    /** 상태별 세션 수 - 전체 통계(overall)의 완료 세션 수 등 집계용 */
+    long countByStatus(SessionStatus status);
+
+    /**
+     * 그룹별 + 상태별 세션 목록 조회 - 대시보드 통계의 그룹별 출석률 집계에 사용
+     * (완료된 세션만 대상으로 그룹별 누적 출석 현황을 계산)
+     */
+    List<AttendanceSession> findByGroupNameAndStatus(String groupName, SessionStatus status);
+
+    /**
+     * 최근 완료된 세션 N건 조회 - 대시보드 통계의 "최근 출석률 트렌드"에 사용
+     * (Pageable로 개수 제한, sessionDate/startTime DESC 정렬은 호출부에서 Pageable로 전달)
+     */
+    List<AttendanceSession> findByStatusOrderBySessionDateDesc(SessionStatus status, Pageable pageable);
 }
