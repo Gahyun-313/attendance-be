@@ -58,7 +58,27 @@ public interface UserRepository extends JpaRepository<User, Long> {
    * @return 역할과 검색 조건에 맞는 사용자 목록의 페이지 객체
    */
   @Query(
-      "SELECT u FROM User u WHERE u.role = :role AND (u.username LIKE %:keyword% OR u.name LIKE %:keyword%)")
+          "SELECT u FROM User u WHERE u.role = :role AND (u.username LIKE %:keyword% OR u.name LIKE %:keyword%)")
   Page<User> searchByRoleAndKeyword(
-      @Param("role") UserRole role, @Param("keyword") String keyword, Pageable pageable);
+          @Param("role") UserRole role, @Param("keyword") String keyword, Pageable pageable);
+
+  /**
+   * 학생 목록 조회 (그룹/이름·학번 검색, 페이징) - GET /api/users (ADMIN)에서 사용 - groupName, keyword는 선택값이며
+   * null이면 해당 조건 미적용 - ADMIN 계정은 DB에서 직접 관리하므로 role=STUDENT로 고정 조회
+   *
+   * @param role 조회할 사용자 역할 (STUDENT 고정)
+   * @param groupName 그룹명 필터 (선택, null이면 전체)
+   * @param keyword username/name 검색 키워드 (선택, null이면 전체)
+   * @param pageable 페이징 및 정렬 정보
+   * @return 조건에 맞는 사용자 목록의 페이지 객체
+   */
+  @Query(
+          "SELECT u FROM User u WHERE u.role = :role "
+                  + "AND (:groupName IS NULL OR u.groupName = :groupName) "
+                  + "AND (:keyword IS NULL OR u.username LIKE %:keyword% OR u.name LIKE %:keyword%)")
+  Page<User> searchStudents(
+          @Param("role") UserRole role,
+          @Param("groupName") String groupName,
+          @Param("keyword") String keyword,
+          Pageable pageable);
 }
