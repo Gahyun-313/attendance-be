@@ -16,7 +16,6 @@ spring:
     properties:
       hibernate:
         format_sql: true  # SQL 포맷팅
-        dialect: org.hibernate.dialect.MySQLDialect
 
   servlet:
     multipart:
