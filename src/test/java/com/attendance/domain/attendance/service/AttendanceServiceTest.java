@@ -67,19 +67,15 @@ class AttendanceServiceTest {
     @Mock private UserRepository userRepository;
     @InjectMocks private AttendanceService attendanceService;
 
-    private NfcTag activeTag(Long id) {
+    private NfcTag activeTag() {
         // 테스트에서 반복적으로 사용할 활성 NFC 태그 생성
-        NfcTag tag =
-                NfcTag.builder()
-                        .uid("TAG-001")
-                        .name("테스트 태그")
-                        .location("301호")
-                        .status(NfcTagStatus.ACTIVE)
-                        .build();
-
-        // id는 @GeneratedValue라 테스트 객체에서 직접 세팅하지 않고,
-        // 세션 조회는 Repository Mock의 반환값으로 제어한다.
-        return tag;
+        // (id는 @GeneratedValue라 빌더에 세팅 항목 자체가 없음 - 세션 조회는 Repository Mock의 반환값으로 제어)
+        return NfcTag.builder()
+                .uid("TAG-001")
+                .name("테스트 태그")
+                .location("301호")
+                .status(NfcTagStatus.ACTIVE)
+                .build();
     }
 
     private AttendanceSession activeSession(Long id, String groupName, LocalDateTime startTime) {
@@ -144,7 +140,7 @@ class AttendanceServiceTest {
         void noActiveSession_throwsException() {
             // given
             // 태그는 활성 상태이지만 연결된 활성 세션이 없는 상황
-            NfcTag tag = activeTag(1L);
+            NfcTag tag = activeTag();
             given(nfcTagRepository.findByUid("TAG-001")).willReturn(Optional.of(tag));
             given(sessionRepository.findActiveSessionsByNfcTagId(any())).willReturn(List.of());
             CheckInRequest request = new CheckInRequest("TAG-001");
@@ -167,7 +163,7 @@ class AttendanceServiceTest {
         void alreadyPresentRecord_throwsDuplicateException() {
             // given
             // 같은 사용자와 세션에 대해 이미 PRESENT 처리된 출석 레코드가 있는 상황
-            NfcTag tag = activeTag(1L);
+            NfcTag tag = activeTag();
             AttendanceSession session = activeSession(10L, "A반", LocalDateTime.now().minusMinutes(5));
             AttendanceRecord existingPresentRecord =
                     AttendanceRecord.builder()
@@ -200,7 +196,7 @@ class AttendanceServiceTest {
         void existingWaitingRecord_updatesInPlaceWithoutNewSave() {
             // given
             // 세션 시작 전에 만들어진 WAITING 레코드가 존재하는 상황
-            NfcTag tag = activeTag(1L);
+            NfcTag tag = activeTag();
             AttendanceSession session = activeSession(10L, "A반", LocalDateTime.now().minusMinutes(5));
             AttendanceRecord waitingRecord =
                     AttendanceRecord.builder().userId(1L).sessionId(10L).status(AttendanceStatus.WAITING).build();
@@ -228,7 +224,7 @@ class AttendanceServiceTest {
         void existingWaitingRecord_lateArrival_updatesToLate() {
             // given
             // WAITING 레코드가 있지만 세션 시작 후 지각 기준(10분)을 초과한 상황
-            NfcTag tag = activeTag(1L);
+            NfcTag tag = activeTag();
             AttendanceSession session = activeSession(10L, "A반", LocalDateTime.now().minusMinutes(20));
             AttendanceRecord waitingRecord =
                     AttendanceRecord.builder().userId(1L).sessionId(10L).status(AttendanceStatus.WAITING).build();
@@ -256,7 +252,7 @@ class AttendanceServiceTest {
         void noExistingRecord_createsNewRecord() {
             // given
             // 사전 생성된 WAITING 레코드가 없어서 체크인 시 새 레코드를 만들어야 하는 상황
-            NfcTag tag = activeTag(1L);
+            NfcTag tag = activeTag();
             AttendanceSession session = activeSession(10L, null, LocalDateTime.now().minusMinutes(5));
             User user = User.builder().id(1L).name("홍길동").role(UserRole.STUDENT).build();
             AttendanceRecord savedRecord =
@@ -287,7 +283,7 @@ class AttendanceServiceTest {
         void lateArrival_marksLateStatus() {
             // given
             // startTime을 20분 전으로 설정하고 lateThreshold를 10분으로 두어 지각 기준을 초과한 상황
-            NfcTag tag = activeTag(1L);
+            NfcTag tag = activeTag();
             AttendanceSession session = activeSession(10L, null, LocalDateTime.now().minusMinutes(20));
             User user = User.builder().id(1L).name("홍길동").role(UserRole.STUDENT).build();
 
@@ -312,7 +308,7 @@ class AttendanceServiceTest {
         void userNotFound_throwsException() {
             // given
             // 태그와 세션은 정상이지만 사용자를 찾을 수 없는 상황 (레코드 저장까지는 진행됨)
-            NfcTag tag = activeTag(1L);
+            NfcTag tag = activeTag();
             AttendanceSession session = activeSession(10L, null, LocalDateTime.now().minusMinutes(5));
 
             given(nfcTagRepository.findByUid("TAG-001")).willReturn(Optional.of(tag));
