@@ -47,7 +47,11 @@ public enum ErrorCode {
   ATTENDANCE_TIME_OVER(HttpStatus.BAD_REQUEST, "AT003", "출석 가능 시간이 아닙니다"),
 
   // FCM 토큰
-  FCM_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "F001", "FCM 토큰을 찾을 수 없습니다");
+  FCM_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "F001", "FCM 토큰을 찾을 수 없습니다"),
+
+  // 알림
+  NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NT001", "알림을 찾을 수 없습니다"),
+  NOTIFICATION_ALREADY_PROCESSED(HttpStatus.BAD_REQUEST, "NT002", "이미 처리된 알림은 취소할 수 없습니다");
 
   private final HttpStatus status;
   private final String code;
