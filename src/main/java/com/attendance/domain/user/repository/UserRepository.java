@@ -109,4 +109,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
   /** 역할별 전체 사용자 수 - 전체 통계(overall)의 전체 학생 수 집계용 */
   long countByRole(UserRole role);
+
+  /**
+   * 특정 역할에 속한 사용자 전체 조회 (페이징 없음) - 알림 전체발송(targetGroup 미지정) 시 대상자 조회에 사용
+   * (NotificationService.dispatch)
+   */
+  List<User> findByRole(UserRole role);
 }
