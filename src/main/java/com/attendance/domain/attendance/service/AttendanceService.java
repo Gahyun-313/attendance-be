@@ -6,6 +6,7 @@ import com.attendance.domain.attendance.dto.AttendanceStatusUpdateRequest;
 import com.attendance.domain.attendance.dto.CheckInRequest;
 import com.attendance.domain.attendance.entity.AttendanceRecord;
 import com.attendance.domain.attendance.entity.AttendanceStatus;
+import com.attendance.domain.attendance.event.AttendanceCheckedInEvent;
 import com.attendance.domain.attendance.repository.AttendanceRepository;
 import com.attendance.domain.nfc.entity.NfcTag;
 import com.attendance.domain.nfc.repository.NfcTagRepository;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,7 @@ public class AttendanceService {
     private final SessionRepository sessionRepository;
     private final NfcTagRepository nfcTagRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher; // 체크인 완료 후 실시간 푸시 트리거용 (Day4 Phase2)
 
     /**
      * 출석 체크인 (STUDENT)
@@ -101,6 +104,11 @@ public class AttendanceService {
                         .findById(userId)
                         .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
         user.recordFirstAttendanceIfAbsent(checkInTime); // 사용자 첫 출석 시각 기록
+
+        // 6. 실시간 푸시 트리거 - 이 시점은 아직 트랜잭션 커밋 전이라 값을 직접 싣지 않고 PK만 이벤트로 발행한다.
+        //    실제 조회/전송은 AttendanceEventListener가 트랜잭션이 커밋된 뒤(AFTER_COMMIT)에 수행한다.
+        eventPublisher.publishEvent(
+                new AttendanceCheckedInEvent(session.getId(), attendanceRecord.getId()));
 
         return AttendanceResponse.from(attendanceRecord, user);
     }
@@ -181,6 +189,19 @@ public class AttendanceService {
                         : 0L;
 
         return AttendanceDashboardResponse.of(sessionId, targetCount, total, present, late, absent, waiting);
+    }
+
+    /**
+     * 출석 레코드 단건 상세 조회 - AttendanceEventListener가 체크인 커밋 후 실시간 푸시 페이로드를 만들 때 사용한다.
+     * (이벤트 발행 시점 값이 아니라 커밋이 확정된 뒤의 최신 상태를 다시 읽기 위함, 섹션 12 참고)
+     */
+    public AttendanceResponse getAttendanceRecord(Long attendanceId) {
+        AttendanceRecord attendanceRecord =
+                attendanceRepository
+                        .findById(attendanceId)
+                        .orElseThrow(() -> new EntityNotFoundException(ErrorCode.ATTENDANCE_NOT_FOUND));
+        User user = userRepository.findById(attendanceRecord.getUserId()).orElse(null);
+        return AttendanceResponse.from(attendanceRecord, user);
     }
 
     /**
