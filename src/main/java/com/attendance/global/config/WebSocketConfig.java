@@ -1,9 +1,11 @@
 package com.attendance.global.config;
 
+import com.attendance.global.security.StompChannelInterceptor;
 import com.attendance.global.security.StompHandshakeInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -25,6 +27,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final StompHandshakeInterceptor stompHandshakeInterceptor;
+    private final StompChannelInterceptor stompChannelInterceptor;
 
     // SecurityConfig의 CORS 설정과 동일한 값을 재사용 (관리자 웹 Origin)
     @Value("${cors.allowed-origins}")
@@ -59,5 +62,16 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         registry.enableSimpleBroker("/topic");
         registry.setApplicationDestinationPrefixes("/app");
+    }
+
+    /**
+     * 클라이언트 -> 서버로 들어오는 STOMP 메시지(SUBSCRIBE, SEND 등)를 가로채는 인터셉터 등록
+     *
+     * <p>StompChannelInterceptor가 SUBSCRIBE 프레임의 destination과 role을 확인해, /topic/attendance/**
+     * 구독을 ADMIN으로 제한한다 (관리자용 실시간 대시보드이므로 STUDENT는 구독할 필요/권한이 없음).
+     */
+    @Override
+    public void configureClientInboundChannel(ChannelRegistration registration) {
+        registration.interceptors(stompChannelInterceptor);
     }
 }
