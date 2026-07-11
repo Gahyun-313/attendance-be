@@ -34,13 +34,13 @@ export function setup() {
         { headers: { 'Content-Type': 'application/json' } }
     );
     const body = JSON.parse(res.body);
-    if (!body.data || !body.data.accessToken) {
+    if (!body.data?.accessToken) {
         throw new Error(`ADMIN 로그인 실패: ${res.body}`);
     }
     return { token: body.data.accessToken };
 }
 
-export default function (data) {
+export default function statsResponseTime (data) {
     const headers = { Authorization: `Bearer ${data.token}` };
 
     group('dashboard 통계 조회', function () {

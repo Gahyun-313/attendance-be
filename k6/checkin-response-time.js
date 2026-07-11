@@ -39,7 +39,7 @@ export function setup() {
             { headers: { 'Content-Type': 'application/json' } }
         );
         const body = JSON.parse(res.body);
-        if (!body.data || !body.data.accessToken) {
+        if (!body.data?.accessToken) {
             throw new Error(`로그인 실패 (${student.username}): ${res.body}`);
         }
         return body.data.accessToken;
@@ -47,7 +47,7 @@ export function setup() {
     return { tokens };
 }
 
-export default function (data) {
+export default function checkinResponseTime (data) {
     // VU는 1부터 시작하므로 -1 해서 0-based 인덱스로 맞춤
     const token = data.tokens[(__VU - 1) % data.tokens.length];
 
