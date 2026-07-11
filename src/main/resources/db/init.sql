@@ -177,7 +177,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 -- =============================================
 -- 초기 데이터 (관리자 계정)
--- password: admin1234! (BCrypt 암호화)
+-- password: admin1234 (BCrypt 암호화)
 -- =============================================
 INSERT INTO users (username, password, email, name, role, password_changed, active, enabled, created_at, updated_at)
 VALUES (
