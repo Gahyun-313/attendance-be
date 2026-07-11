@@ -25,10 +25,13 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 /**
  * Spring Security 전역 설정 클래스
  *
- * <p>[주요 설정 항목] 1. CSRF : 비활성화 (JWT 사용으로 불필요) 2. CORS : 허용 Origin, Method, Header 설정 3. Session :
- * STATELESS (JWT 기반이므로 서버 세션 미사용) 4. 예외 처리 : 401 -> JwtAuthenticationEntryPoint 403 ->
- * JwtAccessDeniedHandler 5. 인가 규칙 : Public API / ADMIN 전용 / 인증 필요 경로 분리 6. Filter :
- * JwtAuthenticationFilter를 UsernamePasswordAuthenticationFilter 앞에 등록
+ * <p>[주요 설정 항목]
+ * 1. CSRF : 비활성화 (JWT 사용으로 불필요)
+ * 2. CORS : 허용 Origin, Method, Header 설정
+ * 3. Session : STATELESS (JWT 기반이므로 서버 세션 미사용)
+ * 4. 예외 처리 : 401 -> JwtAuthenticationEntryPoint, 403 -> JwtAccessDeniedHandler
+ * 5. 인가 규칙 : Public API / ADMIN 전용 / 인증 필요 경로 분리
+ * 6. Filter : JwtAuthenticationFilter를 UsernamePasswordAuthenticationFilter 앞에 등록
  */
 @Configuration
 @EnableWebSecurity // Spring Security 활성화, 기본 Security 자동 설정 대체
@@ -47,51 +50,58 @@ public class SecurityConfig {
   /**
    * Security Filter Chain 설정 - Spring Security의 핵심 설정으로, 모든 HTTP 요청이 이 체인을 통과
    *
-   * <p>[순서] 요청 -> CorsFilter : CORS 검증 -> JwtAuthenticationFilter : JWT 검증 및 SecurityContext 세팅 ->
-   * UsernamePasswordAuthenticationFilter : JWT 사용으로 실질적 미사용 -> AuthorizationFilter : 인가 규칙 적용 ->
-   * 컨트롤러
+   * <p>[순서] 요청 -> CorsFilter(CORS 검증) -> JwtAuthenticationFilter(JWT 검증 및 SecurityContext 세팅)
+   * -> UsernamePasswordAuthenticationFilter(JWT 사용으로 실질적 미사용) -> AuthorizationFilter(인가 규칙 적용)
+   * -> 컨트롤러
    */
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http
-        // CSRF 비활성화
-        // JWT는 요청마다 토큰을 직접 검증 (CSRF 토큰 방식은 세션 기반 인증에서 필요)
-        .csrf(AbstractHttpConfigurer::disable)
+            // CSRF 비활성화
+            // JWT는 요청마다 토큰을 직접 검증 (CSRF 토큰 방식은 세션 기반 인증에서 필요)
+            .csrf(AbstractHttpConfigurer::disable)
 
-        // CORS 설정 (corsConfigurationSource 빈 참조)
-        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            // CORS 설정 (corsConfigurationSource 빈 참조)
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-        // 세션 STATELESS 설정 (JWT 사용 -> 서버가 세션을 저장하지 않음)
-        // 매 요청마다 토큰으로만 인증 처리
-        .sessionManagement(
-            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            // 세션 STATELESS 설정 (JWT 사용 -> 서버가 세션을 저장하지 않음)
+            // 매 요청마다 토큰으로만 인증 처리
+            .sessionManagement(
+                    session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-        // 예외 처리 핸들러 등록
-        .exceptionHandling(
-            exception ->
-                exception
-                    .authenticationEntryPoint(jwtAuthenticationEntryPoint) // 401: 인증 실패
-                    .accessDeniedHandler(jwtAccessDeniedHandler) // 403: 인가 실패
+            // 예외 처리 핸들러 등록
+            .exceptionHandling(
+                    exception ->
+                            exception
+                                    .authenticationEntryPoint(jwtAuthenticationEntryPoint) // 401: 인증 실패
+                                    .accessDeniedHandler(jwtAccessDeniedHandler) // 403: 인가 실패
             )
 
-        // 요청 인증/인가 설정
-        .authorizeHttpRequests(
-            auth ->
-                auth
-                    // Public API : 인증 불필요
-                    .requestMatchers("/api/auth/login", "/api/auth/refresh")
-                    .permitAll()
+            // 요청 인증/인가 설정
+            .authorizeHttpRequests(
+                    auth ->
+                            auth
+                                    // Public API : 인증 불필요
+                                    .requestMatchers("/api/auth/login", "/api/auth/refresh")
+                                    .permitAll()
 
-                    // ADMIN 전용 API
-                    .requestMatchers("/api/admin/**")
-                    .hasRole("ADMIN")
+                                    // WebSocket 핸드셰이크 : 브라우저 네이티브 WebSocket은 커스텀 헤더를 못 보내
+                                    // Authorization 헤더 방식(JwtAuthenticationFilter)이 통하지 않는다.
+                                    // -> 이 경로는 여기서 permitAll로 통과시키고, StompHandshakeInterceptor가
+                                    //    쿼리 파라미터(?token=)로 받은 JWT를 별도로 검증한다.
+                                    .requestMatchers("/ws/**")
+                                    .permitAll()
 
-                    // 이 외의 요청은 인증 필요
-                    .anyRequest()
-                    .authenticated())
+                                    // ADMIN 전용 API
+                                    .requestMatchers("/api/admin/**")
+                                    .hasRole("ADMIN")
 
-        // JWT 필터 추가
-        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                                    // 이 외의 요청은 인증 필요
+                                    .anyRequest()
+                                    .authenticated())
+
+            // JWT 필터 추가
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
     return http.build();
   }
@@ -99,8 +109,8 @@ public class SecurityConfig {
   /**
    * 비밀번호 암호화 인코더 빈 등록
    *
-   * <p>BCrypt: 단방향 해시 알고리즘, salt 자동 적용 - 같은 비밀번호라도 매번 다른 해시값 생성 -> Rainbow Table 공격 방어 -
-   * UserSrvice에서 회원가입 시 비밀번호 암호화, 로그인 시 검증에 적용
+   * <p>BCrypt: 단방향 해시 알고리즘, salt 자동 적용 - 같은 비밀번호라도 매번 다른 해시값 생성 -> Rainbow Table 공격 방어.
+   * UserService에서 회원가입 시 비밀번호 암호화, 로그인 시 검증에 적용.
    */
   @Bean
   public PasswordEncoder passwordEncoder() {
