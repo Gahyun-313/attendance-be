@@ -1,11 +1,13 @@
 package com.attendance.domain.user.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.attendance.domain.user.entity.User;
 import com.attendance.domain.user.entity.UserRole;
+import com.attendance.domain.user.repository.RefreshTokenRepository;
 import com.attendance.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -37,6 +39,7 @@ class AuthIntegrationTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private UserRepository userRepository;
     @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private RefreshTokenRepository refreshTokenRepository;
 
     private User saveUser(String username, String rawPassword, UserRole role) {
         // 로그인 테스트용 사용자 사전 생성 (실제 암호화된 비밀번호로 저장)
@@ -139,6 +142,41 @@ class AuthIntegrationTest {
                                     .content(requestBody))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.code").value("U004"));
+        }
+
+        @Test
+        @DisplayName("같은 사용자가 두 번 연속 로그인해도 500 없이 성공하고 refresh token은 1건만 남는다")
+        void loginTwice_replacesRefreshTokenWithoutError() throws Exception {
+            // given
+            // 회귀 테스트: RefreshTokenRepository.deleteByUserId()가 @Modifying 없는 평범한 derived
+            // delete였을 때, 재로그인 시 "옛 토큰 삭제(지연 flush)"보다 "새 토큰 저장(IDENTITY라 즉시 INSERT)"이
+            // 먼저 반영되어 uk_refresh_tokens_user_id 제약 위반으로 500이 나던 실제 버그를 재현한다.
+            saveUser("20260004", "password1234", UserRole.STUDENT);
+            String requestBody =
+                    """
+                    {"username":"20260004","password":"password1234"}
+                    """;
+
+            // when
+            // 동일 계정으로 두 번 연속 로그인 - 두 번째 호출이 이 버그의 재현 지점
+            mockMvc.perform(
+                            post("/api/auth/login")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(requestBody))
+                    .andExpect(status().isOk());
+
+            mockMvc.perform(
+                            post("/api/auth/login")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(requestBody))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+                    .andExpect(jsonPath("$.data.refreshToken").isNotEmpty());
+
+            // then
+            // 두 번 로그인해도 해당 사용자의 refresh token은 (교체되어) 정확히 1건만 남아있어야 한다
+            User user = userRepository.findByUsername("20260004").orElseThrow();
+            assertThat(refreshTokenRepository.findByUserId(user.getId())).isPresent();
         }
     }
 }
