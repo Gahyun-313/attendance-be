@@ -1,0 +1,25 @@
+{
+  "baseUrl": "http://localhost:8080",
+
+  "admin": {
+    "username": "REPLACE_ME_ADMIN_USERNAME",
+    "password": "REPLACE_ME_ADMIN_PASSWORD"
+  },
+
+  "_nfcTagUid_설명": "체크인에 사용할 NFC 태그 UID. 해당 태그가 연결된 세션이 ACTIVE 상태여야 함",
+  "nfcTagUid": "REPLACE_ME_NFC_TAG_UID",
+
+  "_students_설명": "checkin-response-time.js에서 사용. 서로 다른 학생 계정을 넣을수록 더 많은 '신규 체크인'(중복 아님) 샘플을 측정할 수 있음. 계정이 1개뿐이면 2번째 요청부터는 409(중복) 응답 시간만 측정됨",
+  "students": [
+    { "username": "REPLACE_ME_STUDENT_USERNAME_1", "password": "REPLACE_ME_PASSWORD" }
+  ],
+
+  "_concurrencyStudent_설명": "checkin-concurrency-test.js에서 사용할 단일 학생 계정. 이 계정이 대상 세션의 groupName에 속하지 않아야(또는 세션에 groupName이 없어야) WAITING 사전 레코드가 없는 상태에서 진짜 INSERT 경합 상황을 테스트할 수 있음",
+  "concurrencyStudent": {
+    "username": "REPLACE_ME_STUDENT_USERNAME",
+    "password": "REPLACE_ME_PASSWORD"
+  },
+
+  "_concurrencyNote_설명": "concurrency 테스트는 매 실행마다 해당 학생이 아직 체크인 안 한 '깨끗한' 세션이 필요함 (이미 한 번 성공했으면 전부 409만 뜸). 실행 전 새 세션을 만들거나 DB에서 해당 레코드를 지우고 재실행할 것",
+  "concurrencyVUs": 20
+}
