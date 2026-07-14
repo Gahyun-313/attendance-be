@@ -3,6 +3,7 @@ package com.attendance.domain.attendance.dto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /**
  * 세션별 출석 대시보드 응답 DTO.
@@ -12,6 +13,7 @@ import lombok.Getter;
 @Getter
 @Builder
 @AllArgsConstructor
+@NoArgsConstructor // Redis 캐시 역직렬화가 기본 생성자로 객체를 먼저 만든 뒤 필드를 채우는 방식이라서 필요함
 public class AttendanceDashboardResponse {
 
     private Long sessionId;
