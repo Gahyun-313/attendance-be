@@ -3,7 +3,9 @@ package com.attendance.domain.attendance.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -28,6 +30,7 @@ import com.attendance.global.exception.ErrorCode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -36,6 +39,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.context.ApplicationEventPublisher;
 
 /**
  * AttendanceService 단위 테스트
@@ -65,7 +71,21 @@ class AttendanceServiceTest {
     @Mock private SessionRepository sessionRepository;
     @Mock private NfcTagRepository nfcTagRepository;
     @Mock private UserRepository userRepository;
+    // 아래 둘은 AttendanceService 생성자에는 필요하지만 이 테스트들이 직접 검증하는 대상은 아님
+    // (Mockito @InjectMocks는 생성자 인자 중 매칭되는 @Mock이 없으면 null을 채워 넣는데, 그러면
+    //  checkIn()의 eventPublisher.publishEvent(...) / evict() 호출부에서 NPE가 난다 - 그래서 목만 만들어 채워줌)
+    @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private CacheManager cacheManager;
+    @Mock private Cache cache;
     @InjectMocks private AttendanceService attendanceService;
+
+    @BeforeEach
+    void setUpCacheStub() {
+        // 세션 대시보드 캐시 무효화(evict) 호출이 여러 메서드(checkIn/markAbsentForRemainingWaiting 등)에 걸쳐 있어
+        // 공통으로 스텁. lenient()를 쓴 이유: 이 스텁을 실제로 안 쓰는 테스트(예외로 일찍 끝나는 케이스)에서
+        // Mockito의 strict stubbing이 "안 쓰인 스텁"이라고 실패시키는 것을 막기 위함
+        lenient().when(cacheManager.getCache(anyString())).thenReturn(cache);
+    }
 
     private NfcTag activeTag() {
         // 테스트에서 반복적으로 사용할 활성 NFC 태그 생성
