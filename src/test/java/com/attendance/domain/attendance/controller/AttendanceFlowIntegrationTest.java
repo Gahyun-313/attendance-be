@@ -23,6 +23,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,10 +35,16 @@ import org.springframework.transaction.annotation.Transactional;
  * 실제 HTTP 흐름에서도 정확히 맞물려 동작하는지 확인하는 최종 회귀 테스트 성격이다.
  *
  * @AutoConfigureTestDatabase(replace = ANY)로 인메모리 H2를 사용한다.
+ *
+ * <p>[Day6 추가] 이 테스트는 대시보드 조회(GET .../dashboard)를 두 번 호출하는데, 실제 프로필(local)이
+ * spring.cache.type: redis를 쓰기 때문에 그대로 두면 이 테스트가 로컬 Redis 서버가 떠 있어야만 통과하는
+ * 테스트가 돼버린다 - DB 흐름을 검증하는 게 목적이지 캐싱 자체를 검증하는 게 아니므로, spring.cache.type을
+ * none으로 덮어써서 이 테스트만큼은 캐시 없이(매번 새로 계산해서) 동작하게 만들었다.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
+@TestPropertySource(properties = "spring.cache.type=none")
 @Transactional
 class AttendanceFlowIntegrationTest {
 

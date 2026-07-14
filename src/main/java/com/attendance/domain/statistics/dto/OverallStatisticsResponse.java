@@ -3,6 +3,7 @@ package com.attendance.domain.statistics.dto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /**
  * 전체 통계 응답 DTO - GET /api/statistics/overall (ADMIN)
@@ -11,6 +12,7 @@ import lombok.Getter;
 @Getter
 @Builder
 @AllArgsConstructor
+@NoArgsConstructor // Redis 캐시 역직렬화용 기본 생성자 (AttendanceDashboardResponse와 동일한 이유)
 public class OverallStatisticsResponse {
 
     private long totalStudents;           // 전체 학생 수

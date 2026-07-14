@@ -4,6 +4,7 @@ import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /**
  * 대시보드 통계 응답 DTO - GET /api/statistics/dashboard (ADMIN)
@@ -12,6 +13,7 @@ import lombok.Getter;
 @Getter
 @Builder
 @AllArgsConstructor
+@NoArgsConstructor // Redis 캐시 역직렬화용 기본 생성자 (AttendanceDashboardResponse와 동일한 이유)
 public class DashboardStatisticsResponse {
 
     private long todaySessionCount;      // 오늘 날짜(sessionDate) 세션 수

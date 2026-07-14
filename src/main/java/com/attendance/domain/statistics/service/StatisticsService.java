@@ -14,11 +14,13 @@ import com.attendance.domain.statistics.dto.UserStatisticsResponse;
 import com.attendance.domain.user.entity.User;
 import com.attendance.domain.user.entity.UserRole;
 import com.attendance.domain.user.repository.UserRepository;
+import com.attendance.global.config.RedisConfig;
 import com.attendance.global.exception.EntityNotFoundException;
 import com.attendance.global.exception.ErrorCode;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -45,7 +47,11 @@ public class StatisticsService {
     /**
      * 전체 통계 (ADMIN) - 시스템 전체 누적 수치 스냅샷
      * GET /api/statistics/overall
+     * - count 쿼리 4번을 매번 다시 실행하는 대신 1분간 캐싱(RedisConfig). 파라미터가 없는 메서드라 캐시 항목이 딱 하나뿐이고,
+     *   sessionDashboard처럼 수동 무효화는 하지 않음 - 체크인/상태변경마다 여기까지 지우러 다니면 손댈 곳이 너무 많아지고,
+     *   "최대 1분 지연"은 전체 누적 스냅샷 성격상 감수할 만한 오차라고 판단했다 (RedisConfig 주석 참고).
      */
+    @Cacheable(cacheNames = RedisConfig.CACHE_OVERALL_STATISTICS)
     public OverallStatisticsResponse getOverallStatistics() {
         long totalStudents = userRepository.countByRole(UserRole.STUDENT);
         long totalSessions = sessionRepository.count();
@@ -62,7 +68,10 @@ public class StatisticsService {
     /**
      * 대시보드 통계 (ADMIN) - 오늘/최근/그룹별 관점의 요약·트렌드
      * GET /api/statistics/dashboard
+     * - calculateGroupAttendanceRates()가 그룹 수 x 세션 수만큼 count 쿼리를 반복 실행하는 가장 무거운 조회라
+     *   캐싱 효과가 가장 큰 지점. overall과 같은 이유로 1분 TTL만 적용하고 별도 무효화는 하지 않는다.
      */
+    @Cacheable(cacheNames = RedisConfig.CACHE_DASHBOARD_STATISTICS)
     public DashboardStatisticsResponse getDashboardStatistics() {
         long todaySessionCount = sessionRepository.countBySessionDate(LocalDate.now());
         long activeSessionCount = sessionRepository.countByStatus(SessionStatus.ACTIVE);
