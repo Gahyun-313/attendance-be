@@ -15,6 +15,7 @@ import com.attendance.domain.session.repository.SessionRepository;
 import com.attendance.domain.user.entity.User;
 import com.attendance.domain.user.entity.UserRole;
 import com.attendance.domain.user.repository.UserRepository;
+import com.attendance.global.config.RedisConfig;
 import com.attendance.global.exception.BusinessException;
 import com.attendance.global.exception.DuplicateException;
 import com.attendance.global.exception.EntityNotFoundException;
@@ -24,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -41,6 +44,7 @@ public class AttendanceService {
     private final NfcTagRepository nfcTagRepository;
     private final UserRepository userRepository;
     private final ApplicationEventPublisher eventPublisher; // 체크인 완료 후 실시간 푸시 트리거용 (Day4 Phase2)
+    private final CacheManager cacheManager; // 세션 대시보드 캐시(sessionDashboard)를 수동으로 비우는 데 사용 (Day6 Phase1)
 
     /**
      * 출석 체크인 (STUDENT)
@@ -96,6 +100,12 @@ public class AttendanceService {
                                                         .nfcTagUid(nfcTag.getUid())
                                                         .nfcLocation(nfcTag.getLocation())
                                                         .build()));
+
+        // 4-1. 이 세션의 대시보드 캐시(sessionDashboard) 무효화
+        //    체크인으로 방금 대시보드 집계 숫자(출석/지각 수 등)가 바뀌었으니, TTL(5초)이 끝나길 기다리지 않고 즉시 지운다.
+        //    WebSocket 실시간 푸시(Day4)는 커밋 후(AFTER_COMMIT)에 재조회하지만, 이 캐시 삭제는 "삭제만" 할 뿐 값을
+        //    읽어서 내보내는 게 아니라서 롤백돼도 위험하지 않다 - 최악의 경우 캐시가 불필요하게 한 번 더 비워질 뿐이다.
+        cacheManager.getCache(RedisConfig.CACHE_SESSION_DASHBOARD).evict(session.getId());
 
         // 5. 부가 처리 - 더티 체킹으로 반영됨 (같은 트랜잭션 내 managed 엔티티)
         nfcTag.markUsed(); // 태그 마지막 사용시각 갱신
@@ -155,6 +165,10 @@ public class AttendanceService {
         // 도메인 메서드로 상태 변경 (누가/왜 바꿨는지 함께 기록)
         attendanceRecord.modifyStatus(request.getStatus(), modifiedBy, request.getModifyReason());
 
+        // 관리자가 수동으로 상태를 바꾼 직후 대시보드가 옛날 숫자를 보여주면 "방금 바꿨는데 왜 반영이 안 되지"로
+        // 보이기 쉬워서, checkIn()과 동일하게 즉시 캐시를 비운다.
+        cacheManager.getCache(RedisConfig.CACHE_SESSION_DASHBOARD).evict(attendanceRecord.getSessionId());
+
         User user = userRepository.findById(attendanceRecord.getUserId()).orElse(null);
         return AttendanceResponse.from(attendanceRecord, user);
     }
@@ -162,16 +176,22 @@ public class AttendanceService {
     /** 출석 기록 삭제 (ADMIN) */
     @Transactional
     public void deleteAttendance(Long attendanceId) {
-        if (!attendanceRepository.existsById(attendanceId)) {
-            throw new EntityNotFoundException(ErrorCode.ATTENDANCE_NOT_FOUND);
-        }
+        // existsById 대신 findById로 바꾼 이유: 삭제 전 sessionId를 알아야 그 세션의 대시보드 캐시를 지울 수 있다
+        AttendanceRecord attendanceRecord =
+                attendanceRepository
+                        .findById(attendanceId)
+                        .orElseThrow(() -> new EntityNotFoundException(ErrorCode.ATTENDANCE_NOT_FOUND));
         attendanceRepository.deleteById(attendanceId);
+        cacheManager.getCache(RedisConfig.CACHE_SESSION_DASHBOARD).evict(attendanceRecord.getSessionId());
     }
 
     /**
      * 세션별 출석 대시보드 (ADMIN) - 상태별 레코드 수 + 대상자 수(targetCount) 집계
      * - targetCount: 세션 groupName 기준 STUDENT 수. 그룹 미지정 세션은 totalRecords로 근사(AttendanceDashboardResponse에서 처리)
+     * - Redis에 5초 TTL로 캐싱(RedisConfig 참고) + checkIn/updateStatus/delete/세션종료 시점에 수동 무효화도 같이 해서,
+     *   폴링 중 최대 5초 지연은 감수하되 "직접 조작한 직후"만큼은 바로 반영되게 한다.
      */
+    @Cacheable(cacheNames = RedisConfig.CACHE_SESSION_DASHBOARD)
     public AttendanceDashboardResponse getSessionDashboard(Long sessionId) {
         AttendanceSession session =
                 sessionRepository
@@ -239,5 +259,7 @@ public class AttendanceService {
         for (AttendanceRecord attendanceRecord : waitingRecords) {
             attendanceRecord.modifyStatus(AttendanceStatus.ABSENT, "SYSTEM", "세션 종료 시 자동 결석 처리");
         }
+        // WAITING 여러 건이 한 번에 ABSENT로 바뀌어 대시보드 숫자가 크게 움직이는 시점 - 세션 종료 직후 바로 반영되게 캐시 비움
+        cacheManager.getCache(RedisConfig.CACHE_SESSION_DASHBOARD).evict(sessionId);
     }
 }
