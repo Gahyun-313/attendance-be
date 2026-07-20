@@ -28,15 +28,15 @@ public class JwtTokenProvider {
 
   /** 생성자 : application.yml의 JWT 설정을 주입받아 초기화 */
   public JwtTokenProvider(
-          // application.yml의 jwt secret 값
-          // -> UTF-8 바이트 배열로 변환 후 HMAC-SHA256 전용 SecretKey 객체 생성
-          // -> 실제 운영 환경에서는 환경변수/Vault로 관리
-          @Value("${jwt.secret}") String secret,
-          @Value("${jwt.access-token-expiration}")
+      // application.yml의 jwt secret 값
+      // -> UTF-8 바이트 배열로 변환 후 HMAC-SHA256 전용 SecretKey 객체 생성
+      // -> 실제 운영 환경에서는 환경변수/Vault로 관리
+      @Value("${jwt.secret}") String secret,
+      @Value("${jwt.access-token-expiration}")
           long accessTokenExpiration, // Access Token 유효 기간 (밀리 초)
-          @Value("${jwt.refresh-token-expiration}")
+      @Value("${jwt.refresh-token-expiration}")
           long refreshTokenExpiration // Refresh Token 유효 기간 (밀리 초)
-  ) {
+      ) {
     // Secret Key를 HMAC-SHA256용 SecretKey 객체로 변환
     // UTF-8 바이트 배열로 변환 후 Keys.hmacShaKeyFor()로 키 생성
     this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
@@ -54,13 +54,13 @@ public class JwtTokenProvider {
     Date validity = new Date(now.getTime() + accessTokenExpiration); // 만료 시간 = 현재 + 유효기간
 
     return Jwts.builder()
-            .subject(username) // sub: Spring Security principal로 사용되는 사용자명
-            .claim("userId", userId)
-            .claim("role", role)
-            .issuedAt(now) // iat: 발행 시간
-            .expiration(validity) // exp: 만료 시간
-            .signWith(secretKey) // HMAC-SHA256으로 서명 (secretKey 타입에서 알고리즘 자동 결정)
-            .compact(); // header.payload.signature 형태의 문자열로 직렬화
+        .subject(username) // sub: Spring Security principal로 사용되는 사용자명
+        .claim("userId", userId)
+        .claim("role", role)
+        .issuedAt(now) // iat: 발행 시간
+        .expiration(validity) // exp: 만료 시간
+        .signWith(secretKey) // HMAC-SHA256으로 서명 (secretKey 타입에서 알고리즘 자동 결정)
+        .compact(); // header.payload.signature 형태의 문자열로 직렬화
   }
 
   /** Refresh Token 생성 */
@@ -70,12 +70,12 @@ public class JwtTokenProvider {
     Date validity = new Date(now.getTime() + refreshTokenExpiration);
 
     return Jwts.builder()
-            .subject(username)
-            .claim("userId", userId)
-            .issuedAt(now)
-            .expiration(validity)
-            .signWith(secretKey)
-            .compact();
+        .subject(username)
+        .claim("userId", userId)
+        .issuedAt(now)
+        .expiration(validity)
+        .signWith(secretKey)
+        .compact();
   }
 
   // ------------------------------------------------
@@ -166,9 +166,9 @@ public class JwtTokenProvider {
    */
   private Claims parseClaims(String token) {
     return Jwts.parser()
-            .verifyWith(secretKey) // 서명 검증에 사용할 키 설정
-            .build()
-            .parseSignedClaims(token) // 서명 검증 + 파싱 동시 수행
-            .getPayload(); // 검증된 Claims(payload) 반환
+        .verifyWith(secretKey) // 서명 검증에 사용할 키 설정
+        .build()
+        .parseSignedClaims(token) // 서명 검증 + 파싱 동시 수행
+        .getPayload(); // 검증된 Claims(payload) 반환
   }
 }

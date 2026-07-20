@@ -27,18 +27,18 @@ public class UserResponse {
 
   public static UserResponse from(User user) {
     return UserResponse.builder()
-            .id(user.getId())
-            .username(user.getUsername())
-            .email(user.getEmail())
-            .name(user.getName())
-            .role(user.getRole().name())
-            .groupName(user.getGroupName())
-            .note(user.getNote())
-            .passwordChanged(user.getPasswordChanged())
-            .active(user.getActive())
-            .firstAttendanceAt(user.getFirstAttendanceAt())
-            .createdAt(user.getCreatedAt())
-            .updatedAt(user.getUpdatedAt())
-            .build();
+        .id(user.getId())
+        .username(user.getUsername())
+        .email(user.getEmail())
+        .name(user.getName())
+        .role(user.getRole().name())
+        .groupName(user.getGroupName())
+        .note(user.getNote())
+        .passwordChanged(user.getPasswordChanged())
+        .active(user.getActive())
+        .firstAttendanceAt(user.getFirstAttendanceAt())
+        .createdAt(user.getCreatedAt())
+        .updatedAt(user.getUpdatedAt())
+        .build();
   }
 }

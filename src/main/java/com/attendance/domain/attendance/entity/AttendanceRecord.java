@@ -7,8 +7,8 @@ import lombok.*;
 /** 출석 기록 엔티티 userId + sessionId Unique 제약 -> 중복 출석 방지 */
 @Entity
 @Table(
-        name = "attendance_records",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "session_id"}))
+    name = "attendance_records",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "session_id"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -77,11 +77,11 @@ public class AttendanceRecord {
   }
 
   /**
-   * 체크인 처리 - 세션 시작 시 사전 생성된 WAITING 레코드를 실제 체크인 정보로 갱신한다. (AttendanceService.checkIn에서 기존
-   * WAITING 레코드가 있을 때 사용, 없으면 새 레코드를 생성)
+   * 체크인 처리 - 세션 시작 시 사전 생성된 WAITING 레코드를 실제 체크인 정보로 갱신한다. (AttendanceService.checkIn에서 기존 WAITING
+   * 레코드가 있을 때 사용, 없으면 새 레코드를 생성)
    */
   public void checkIn(
-          AttendanceStatus status, LocalDateTime checkInTime, String nfcTagUid, String nfcLocation) {
+      AttendanceStatus status, LocalDateTime checkInTime, String nfcTagUid, String nfcLocation) {
     this.status = status;
     this.checkInTime = checkInTime;
     this.nfcTagUid = nfcTagUid;

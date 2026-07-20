@@ -10,11 +10,11 @@ import lombok.NoArgsConstructor;
 /** NFC 태그 엔티티 출석 체크에 사용되는 NFC 태그의 정보를 저장 */
 @Entity
 @Table(
-        name = "nfc_tags",
-        indexes = {
-                @Index(name = "idx_nfc_uid", columnList = "uid"),
-                @Index(name = "idx_nfc_status", columnList = "status")
-        })
+    name = "nfc_tags",
+    indexes = {
+      @Index(name = "idx_nfc_uid", columnList = "uid"),
+      @Index(name = "idx_nfc_status", columnList = "status")
+    })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class NfcTag {
@@ -75,12 +75,20 @@ public class NfcTag {
     if (location != null) this.location = location;
   }
 
-  public void activate() { this.status = NfcTagStatus.ACTIVE; }
+  public void activate() {
+    this.status = NfcTagStatus.ACTIVE;
+  }
 
-  public void deactivate() { this.status = NfcTagStatus.INACTIVE; }
+  public void deactivate() {
+    this.status = NfcTagStatus.INACTIVE;
+  }
 
-  public boolean isActive() { return this.status == NfcTagStatus.ACTIVE; }
+  public boolean isActive() {
+    return this.status == NfcTagStatus.ACTIVE;
+  }
 
   // 태그 사용 시각 기록 - 출석 체크 시 해당 태그가 스캔될 때마다 호출
-  public void markUsed() { this.lastUsedAt = LocalDateTime.now(); }
+  public void markUsed() {
+    this.lastUsedAt = LocalDateTime.now();
+  }
 }

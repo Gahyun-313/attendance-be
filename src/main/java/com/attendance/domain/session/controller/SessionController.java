@@ -25,109 +25,82 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class SessionController {
 
-    private final SessionService sessionService;
+  private final SessionService sessionService;
 
-    /**
-     * 세션 생성 POST /api/sessions
-     * - ADMIN 전용
-     */
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping
-    public ResponseEntity<ApiResponse<SessionResponse>> createSession(
-            @Valid @RequestBody SessionRequest request,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        SessionResponse response = sessionService.createSession(request, userDetails.getUserId());
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(response, "세션이 생성되었습니다"));
-    }
+  /** 세션 생성 POST /api/sessions - ADMIN 전용 */
+  @PreAuthorize("hasRole('ADMIN')")
+  @PostMapping
+  public ResponseEntity<ApiResponse<SessionResponse>> createSession(
+      @Valid @RequestBody SessionRequest request,
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    SessionResponse response = sessionService.createSession(request, userDetails.getUserId());
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResponse.success(response, "세션이 생성되었습니다"));
+  }
 
-    /**
-     * 세션 목록 조회 GET /api/sessions
-     * - status: 상태별 필터링 (선택)
-     * - keyword: 세션명 검색 (선택)
-     */
-    @GetMapping
-    public ResponseEntity<ApiResponse<Page<SessionResponse>>> getSessions(
-            @RequestParam(required = false) SessionStatus status,
-            @RequestParam(required = false) String keyword,
-            @PageableDefault(size = 20, sort = "sessionDate", direction = Sort.Direction.DESC)
-            Pageable pageable) {
-        Page<SessionResponse> response = sessionService.getSessions(status, keyword, pageable);
-        return ResponseEntity.ok(ApiResponse.success(response, "세션 목록 조회 성공"));
-    }
+  /** 세션 목록 조회 GET /api/sessions - status: 상태별 필터링 (선택) - keyword: 세션명 검색 (선택) */
+  @GetMapping
+  public ResponseEntity<ApiResponse<Page<SessionResponse>>> getSessions(
+      @RequestParam(required = false) SessionStatus status,
+      @RequestParam(required = false) String keyword,
+      @PageableDefault(size = 20, sort = "sessionDate", direction = Sort.Direction.DESC)
+          Pageable pageable) {
+    Page<SessionResponse> response = sessionService.getSessions(status, keyword, pageable);
+    return ResponseEntity.ok(ApiResponse.success(response, "세션 목록 조회 성공"));
+  }
 
-    /**
-     * 세션 상세 조회 GET /api/sessions/{sessionId}
-     */
-    @GetMapping("/{sessionId}")
-    public ResponseEntity<ApiResponse<SessionResponse>> getSession(@PathVariable Long sessionId) {
-        SessionResponse response = sessionService.getSession(sessionId);
-        return ResponseEntity.ok(ApiResponse.success(response, "세션 조회 성공"));
-    }
+  /** 세션 상세 조회 GET /api/sessions/{sessionId} */
+  @GetMapping("/{sessionId}")
+  public ResponseEntity<ApiResponse<SessionResponse>> getSession(@PathVariable Long sessionId) {
+    SessionResponse response = sessionService.getSession(sessionId);
+    return ResponseEntity.ok(ApiResponse.success(response, "세션 조회 성공"));
+  }
 
-    /**
-     * 세션 수정 PUT /api/sessions/{sessionId}
-     * - ADMIN 전용
-     */
-    @PreAuthorize("hasRole('ADMIN')")
-    @PutMapping("/{sessionId}")
-    public ResponseEntity<ApiResponse<SessionResponse>> updateSession(
-            @PathVariable Long sessionId, @Valid @RequestBody SessionRequest request) {
-        SessionResponse response = sessionService.updateSession(sessionId, request);
-        return ResponseEntity.ok(ApiResponse.success(response, "세션이 수정되었습니다"));
-    }
+  /** 세션 수정 PUT /api/sessions/{sessionId} - ADMIN 전용 */
+  @PreAuthorize("hasRole('ADMIN')")
+  @PutMapping("/{sessionId}")
+  public ResponseEntity<ApiResponse<SessionResponse>> updateSession(
+      @PathVariable Long sessionId, @Valid @RequestBody SessionRequest request) {
+    SessionResponse response = sessionService.updateSession(sessionId, request);
+    return ResponseEntity.ok(ApiResponse.success(response, "세션이 수정되었습니다"));
+  }
 
-    /**
-     * 세션 삭제 DELETE /api/sessions/{sessionId}
-     * - ADMIN 전용
-     */
-    @PreAuthorize("hasRole('ADMIN')")
-    @DeleteMapping("/{sessionId}")
-    public ResponseEntity<ApiResponse<Void>> deleteSession(@PathVariable Long sessionId) {
-        sessionService.deleteSession(sessionId);
-        return ResponseEntity.ok(ApiResponse.success("세션이 삭제되었습니다"));
-    }
+  /** 세션 삭제 DELETE /api/sessions/{sessionId} - ADMIN 전용 */
+  @PreAuthorize("hasRole('ADMIN')")
+  @DeleteMapping("/{sessionId}")
+  public ResponseEntity<ApiResponse<Void>> deleteSession(@PathVariable Long sessionId) {
+    sessionService.deleteSession(sessionId);
+    return ResponseEntity.ok(ApiResponse.success("세션이 삭제되었습니다"));
+  }
 
-    /**
-     * 세션 시작 POST /api/sessions/{sessionId}/start
-     * - ADMIN 전용, SCHEDULED → ACTIVE
-     */
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/{sessionId}/start")
-    public ResponseEntity<ApiResponse<SessionResponse>> startSession(@PathVariable Long sessionId) {
-        SessionResponse response = sessionService.startSession(sessionId);
-        return ResponseEntity.ok(ApiResponse.success(response, "세션이 시작되었습니다"));
-    }
+  /** 세션 시작 POST /api/sessions/{sessionId}/start - ADMIN 전용, SCHEDULED → ACTIVE */
+  @PreAuthorize("hasRole('ADMIN')")
+  @PostMapping("/{sessionId}/start")
+  public ResponseEntity<ApiResponse<SessionResponse>> startSession(@PathVariable Long sessionId) {
+    SessionResponse response = sessionService.startSession(sessionId);
+    return ResponseEntity.ok(ApiResponse.success(response, "세션이 시작되었습니다"));
+  }
 
-    /**
-     * 세션 종료 POST /api/sessions/{sessionId}/close
-     * - ADMIN 전용, ACTIVE → COMPLETED
-     */
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/{sessionId}/close")
-    public ResponseEntity<ApiResponse<SessionResponse>> closeSession(@PathVariable Long sessionId) {
-        SessionResponse response = sessionService.closeSession(sessionId);
-        return ResponseEntity.ok(ApiResponse.success(response, "세션이 종료되었습니다"));
-    }
+  /** 세션 종료 POST /api/sessions/{sessionId}/close - ADMIN 전용, ACTIVE → COMPLETED */
+  @PreAuthorize("hasRole('ADMIN')")
+  @PostMapping("/{sessionId}/close")
+  public ResponseEntity<ApiResponse<SessionResponse>> closeSession(@PathVariable Long sessionId) {
+    SessionResponse response = sessionService.closeSession(sessionId);
+    return ResponseEntity.ok(ApiResponse.success(response, "세션이 종료되었습니다"));
+  }
 
-    /**
-     * 세션 취소 POST /api/sessions/{sessionId}/cancel
-     * - ADMIN 전용
-     */
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/{sessionId}/cancel")
-    public ResponseEntity<ApiResponse<SessionResponse>> cancelSession(@PathVariable Long sessionId) {
-        SessionResponse response = sessionService.cancelSession(sessionId);
-        return ResponseEntity.ok(ApiResponse.success(response, "세션이 취소되었습니다"));
-    }
+  /** 세션 취소 POST /api/sessions/{sessionId}/cancel - ADMIN 전용 */
+  @PreAuthorize("hasRole('ADMIN')")
+  @PostMapping("/{sessionId}/cancel")
+  public ResponseEntity<ApiResponse<SessionResponse>> cancelSession(@PathVariable Long sessionId) {
+    SessionResponse response = sessionService.cancelSession(sessionId);
+    return ResponseEntity.ok(ApiResponse.success(response, "세션이 취소되었습니다"));
+  }
 
-    /**
-     * 활성 세션 조회 GET /api/sessions/active
-     * - 현재 진행 중인 세션 목록
-     */
-    @GetMapping("/active")
-    public ResponseEntity<ApiResponse<List<SessionResponse>>> getActiveSessions() {
-        List<SessionResponse> response = sessionService.getActiveSessions();
-        return ResponseEntity.ok(ApiResponse.success(response, "활성 세션 조회 성공"));
-    }
+  /** 활성 세션 조회 GET /api/sessions/active - 현재 진행 중인 세션 목록 */
+  @GetMapping("/active")
+  public ResponseEntity<ApiResponse<List<SessionResponse>>> getActiveSessions() {
+    List<SessionResponse> response = sessionService.getActiveSessions();
+    return ResponseEntity.ok(ApiResponse.success(response, "활성 세션 조회 성공"));
+  }
 }

@@ -35,14 +35,18 @@ public class NfcTagService {
 
   /** NFC 태그 ID로 조회 */
   public NfcTagResponse getNfcTagById(Long id) {
-    NfcTag nfcTag = nfcTagRepository.findById(id)
+    NfcTag nfcTag =
+        nfcTagRepository
+            .findById(id)
             .orElseThrow(() -> new EntityNotFoundException(ErrorCode.NFC_TAG_NOT_FOUND));
     return NfcTagResponse.from(nfcTag);
   }
 
   /** NFC 태그 UID로 조회 */
   public NfcTagResponse getNfcTagByUid(String uid) {
-    NfcTag nfcTag = nfcTagRepository.findByUid(uid)
+    NfcTag nfcTag =
+        nfcTagRepository
+            .findByUid(uid)
             .orElseThrow(() -> new EntityNotFoundException(ErrorCode.NFC_TAG_NOT_FOUND));
     return NfcTagResponse.from(nfcTag);
   }
@@ -60,14 +64,16 @@ public class NfcTagService {
   /** NFC 태그 검색 (이름 또는 위치) */
   public Page<NfcTagResponse> searchNfcTags(String keyword, Pageable pageable) {
     return nfcTagRepository
-            .findByNameContainingOrLocationContaining(keyword, keyword, pageable)
-            .map(NfcTagResponse::from);
+        .findByNameContainingOrLocationContaining(keyword, keyword, pageable)
+        .map(NfcTagResponse::from);
   }
 
   /** NFC 태그 정보 수정 */
   @Transactional
   public NfcTagResponse updateNfcTag(Long id, NfcTagUpdateRequest request) {
-    NfcTag nfcTag = nfcTagRepository.findById(id)
+    NfcTag nfcTag =
+        nfcTagRepository
+            .findById(id)
             .orElseThrow(() -> new EntityNotFoundException(ErrorCode.NFC_TAG_NOT_FOUND));
     nfcTag.updateInfo(request.getName(), request.getDescription(), request.getLocation());
     return NfcTagResponse.from(nfcTag);
@@ -76,7 +82,9 @@ public class NfcTagService {
   /** NFC 태그 활성화 */
   @Transactional
   public NfcTagResponse activateNfcTag(Long id) {
-    NfcTag nfcTag = nfcTagRepository.findById(id)
+    NfcTag nfcTag =
+        nfcTagRepository
+            .findById(id)
             .orElseThrow(() -> new EntityNotFoundException(ErrorCode.NFC_TAG_NOT_FOUND));
     nfcTag.activate();
     return NfcTagResponse.from(nfcTag);
@@ -85,7 +93,9 @@ public class NfcTagService {
   /** NFC 태그 비활성화 */
   @Transactional
   public NfcTagResponse deactivateNfcTag(Long id) {
-    NfcTag nfcTag = nfcTagRepository.findById(id)
+    NfcTag nfcTag =
+        nfcTagRepository
+            .findById(id)
             .orElseThrow(() -> new EntityNotFoundException(ErrorCode.NFC_TAG_NOT_FOUND));
     nfcTag.deactivate();
     return NfcTagResponse.from(nfcTag);

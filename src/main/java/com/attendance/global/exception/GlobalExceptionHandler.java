@@ -49,7 +49,7 @@ public class GlobalExceptionHandler {
    */
   @ExceptionHandler(MethodArgumentNotValidException.class)
   protected ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(
-          MethodArgumentNotValidException e) {
+      MethodArgumentNotValidException e) {
     log.error("MethodArgumentNotValidException: {}", e.getMessage());
     // BindingResult에서 필드 에러 정보를 추출하여 ErrorResponse 생성
     ErrorResponse response = ErrorResponse.of(ErrorCode.INVALID_INPUT_VALUE, e.getBindingResult());
@@ -59,7 +59,7 @@ public class GlobalExceptionHandler {
   /** HTTP Method 오류 처리 - GET 요청만 허용하는 엔드포인트에 POST로 요청한 경우 등 */
   @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
   protected ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupportedException(
-          HttpRequestMethodNotSupportedException e) {
+      HttpRequestMethodNotSupportedException e) {
     log.error("HttpRequestMethodNotSupportedException: {}", e.getMessage());
     ErrorResponse response = ErrorResponse.of(ErrorCode.METHOD_NOT_ALLOWED);
     return new ResponseEntity<>(response, HttpStatus.METHOD_NOT_ALLOWED);
@@ -72,7 +72,7 @@ public class GlobalExceptionHandler {
    */
   @ExceptionHandler(NoResourceFoundException.class)
   protected ResponseEntity<ErrorResponse> handleNoResourceFoundException(
-          NoResourceFoundException e) {
+      NoResourceFoundException e) {
     log.error("NoResourceFoundException: {}", e.getMessage());
     ErrorResponse response = ErrorResponse.of(ErrorCode.RESOURCE_NOT_FOUND);
     return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);

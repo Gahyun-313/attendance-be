@@ -7,8 +7,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 대시보드 통계 응답 DTO - GET /api/statistics/dashboard (ADMIN)
- * 전체 통계(overall, 누적 수치)와 달리 "오늘/최근/그룹별" 관점의 요약·트렌드 정보를 제공한다.
+ * 대시보드 통계 응답 DTO - GET /api/statistics/dashboard (ADMIN) 전체 통계(overall, 누적 수치)와 달리 "오늘/최근/그룹별" 관점의
+ * 요약·트렌드 정보를 제공한다.
  */
 @Getter
 @Builder
@@ -16,8 +16,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor // Redis 캐시 역직렬화용 기본 생성자 (AttendanceDashboardResponse와 동일한 이유)
 public class DashboardStatisticsResponse {
 
-    private long todaySessionCount;      // 오늘 날짜(sessionDate) 세션 수
-    private long activeSessionCount;     // 현재 ACTIVE 세션 수
-    private double recentAttendanceRate; // 최근 완료된 세션 5개의 평균 출석률
-    private List<GroupAttendanceRate> groupAttendanceRates; // 그룹별 누적 출석 현황 (완료된 세션 기준)
+  private long todaySessionCount; // 오늘 날짜(sessionDate) 세션 수
+  private long activeSessionCount; // 현재 ACTIVE 세션 수
+  private double recentAttendanceRate; // 최근 완료된 세션 5개의 평균 출석률
+  private List<GroupAttendanceRate> groupAttendanceRates; // 그룹별 누적 출석 현황 (완료된 세션 기준)
 }
