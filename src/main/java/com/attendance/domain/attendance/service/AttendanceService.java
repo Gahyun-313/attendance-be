@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
@@ -112,7 +113,7 @@ public class AttendanceService {
         //    체크인으로 방금 대시보드 집계 숫자(출석/지각 수 등)가 바뀌었으니, TTL(5초)이 끝나길 기다리지 않고 즉시 지운다.
         //    WebSocket 실시간 푸시는 커밋 후(AFTER_COMMIT)에 재조회하지만, 이 캐시 삭제는 "삭제만" 할 뿐 값을
         //    읽어서 내보내는 게 아니라서 롤백돼도 위험하지 않다 - 최악의 경우 캐시가 불필요하게 한 번 더 비워질 뿐이다.
-        cacheManager.getCache(RedisConfig.CACHE_SESSION_DASHBOARD).evict(session.getId());
+        evictSessionDashboard(session.getId());
 
         // 5. 부가 처리 - 더티 체킹으로 반영됨 (같은 트랜잭션 내 managed 엔티티)
         nfcTag.markUsed(); // 태그 마지막 사용시각 갱신
@@ -135,6 +136,12 @@ public class AttendanceService {
      * 락 키를 사용자+세션 단위로 잡아서, 같은 사람이 같은 세션에 짧은 시간 안에 여러 번 요청을
      * 보내도(중복 클릭, 앱 재시도, 네트워크 재전송 등) 이 구간은 한 번에 한 스레드만 통과한다.
      */
+    // SonarLint(java:S2222)는 이 메서드 안에서 try/finally로 unlock()이 바로 보이지 않는다는 이유로
+    // "락이 모든 실행 경로에서 해제되지 않을 수 있다"고 경고하지만, 실제로는 아래 releaseLockAfterTransaction()
+    // 호출이 find/save 로직(예외가 날 수 있는 부분)보다 먼저 실행되어 이후 어떤 경로로 메서드를 벗어나든
+    // 해제가 항상 예약(트랜잭션 있음) 또는 즉시 실행(트랜잭션 없음)되므로 안전하다 - 정적 분석이 간접 호출
+    // 흐름까지는 못 따라가서 생기는 오탐(false positive)으로 판단해 억제한다.
+    @SuppressWarnings("java:S2222")
     private AttendanceRecord findOrCreateRecordWithLock(
             Long userId,
             AttendanceSession session,
@@ -270,7 +277,7 @@ public class AttendanceService {
 
         // 관리자가 수동으로 상태를 바꾼 직후 대시보드가 옛날 숫자를 보여주면 "방금 바꿨는데 왜 반영이 안 되지"로
         // 보이기 쉬워서, checkIn()과 동일하게 즉시 캐시를 비운다.
-        cacheManager.getCache(RedisConfig.CACHE_SESSION_DASHBOARD).evict(attendanceRecord.getSessionId());
+        evictSessionDashboard(attendanceRecord.getSessionId());
 
         User user = userRepository.findById(attendanceRecord.getUserId()).orElse(null);
         return AttendanceResponse.from(attendanceRecord, user);
@@ -285,7 +292,7 @@ public class AttendanceService {
                         .findById(attendanceId)
                         .orElseThrow(() -> new EntityNotFoundException(ErrorCode.ATTENDANCE_NOT_FOUND));
         attendanceRepository.deleteById(attendanceId);
-        cacheManager.getCache(RedisConfig.CACHE_SESSION_DASHBOARD).evict(attendanceRecord.getSessionId());
+        evictSessionDashboard(attendanceRecord.getSessionId());
     }
 
     /**
@@ -363,6 +370,19 @@ public class AttendanceService {
             attendanceRecord.modifyStatus(AttendanceStatus.ABSENT, "SYSTEM", "세션 종료 시 자동 결석 처리");
         }
         // WAITING 여러 건이 한 번에 ABSENT로 바뀌어 대시보드 숫자가 크게 움직이는 시점 - 세션 종료 직후 바로 반영되게 캐시 비움
-        cacheManager.getCache(RedisConfig.CACHE_SESSION_DASHBOARD).evict(sessionId);
+        evictSessionDashboard(sessionId);
+    }
+
+    /**
+     * 세션 대시보드 캐시(sessionDashboard)를 안전하게 비운다.
+     * CacheManager.getCache(String)는 반환 타입이 @Nullable이라(존재하지 않는 캐시 이름을 넘기면 null) IDE가
+     * NPE 가능성을 경고한다 - RedisConfig에 이 캐시를 미리 등록해뒀으니 런타임에 null이 될 일은 거의 없지만,
+     * 정적 분석 경고를 없애고 안전성도 명시적으로 보장하기 위해 null 체크를 이 헬퍼 하나로 모았다.
+     */
+    private void evictSessionDashboard(Long sessionId) {
+        Cache cache = cacheManager.getCache(RedisConfig.CACHE_SESSION_DASHBOARD);
+        if (cache != null) {
+            cache.evict(sessionId);
+        }
     }
 }
