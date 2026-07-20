@@ -23,8 +23,11 @@ import com.attendance.global.exception.ErrorCode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
@@ -39,12 +42,23 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AttendanceService {
 
+    // 체크인 분산 락 설정값 - 근거는 findOrCreateRecordWithLock() 주석 참고
+    private static final String LOCK_KEY_PREFIX = "lock:checkin:";
+    private static final long LOCK_WAIT_SECONDS = 3L;
+    private static final long LOCK_LEASE_SECONDS = 3L;
+
     private final AttendanceRepository attendanceRepository;
     private final SessionRepository sessionRepository;
     private final NfcTagRepository nfcTagRepository;
     private final UserRepository userRepository;
-    private final ApplicationEventPublisher eventPublisher; // 체크인 완료 후 실시간 푸시 트리거용 (Day4 Phase2)
-    private final CacheManager cacheManager; // 세션 대시보드 캐시(sessionDashboard)를 수동으로 비우는 데 사용 (Day6 Phase1)
+    private final ApplicationEventPublisher eventPublisher; // 체크인 완료 후 실시간 푸시 트리거용
+    private final CacheManager cacheManager; // 세션 대시보드 캐시(sessionDashboard)를 수동으로 비우는 데 사용
+
+    // 동시 체크인 경합 방지용 분산 락.
+    // RedisConfig처럼 별도 Config 클래스가 없는 이유 -> redisson-spring-boot-starter는 의존성만 추가하면
+    // application-local.yml의 spring.data.redis.host/port를 그대로 읽어 RedissonClient 빈을 자동으로
+    // 만들어주기 때문에 @Bean으로 직접 만들 필요가 없다.
+    private final RedissonClient redissonClient;
 
     /**
      * 출석 체크인 (STUDENT)
@@ -76,34 +90,18 @@ public class AttendanceService {
         AttendanceStatus status =
                 session.isLate(checkInTime) ? AttendanceStatus.LATE : AttendanceStatus.PRESENT;
 
-        // 4. 기존 레코드(WAITING 사전 등록분) 갱신, 없으면 신규 생성
-        //    이미 PRESENT/LATE/ABSENT면 중복 출석 (애플리케이션 레벨 1차 방어, 최종 보장은 DB Unique 제약)
-        //    동시 요청 동시성 제어(분산 락)는 Day 6 예정
+        // 4. 분산 락으로 감싼 임계 구역 - 기존 레코드 조회 + 저장/갱신
+        //    같은 사용자가 같은 세션에 짧은 시간 안에 중복 요청을 보내면(중복 클릭, 앱 재시도 등), 여러 요청이
+        //    동시에 findByUserIdAndSessionId에서 "없음"을 보고 각자 save()를 시도해 DB Unique 제약 위반이
+        //    처리되지 않은 채 500으로 노출되는 문제가 있었다 - 락은 이 구간만 감싼다. NFC 태그 검증/세션 조회
+        //    (1~3단계)까지 락으로 감싸면 락을 쥐는 시간만 늘어나고 얻는 게 없다.
+        //    (락 키가 사용자+세션 단위라 다른 사용자의 체크인과는 어차피 안 겹치기 때문)
         AttendanceRecord attendanceRecord =
-                attendanceRepository
-                        .findByUserIdAndSessionId(userId, session.getId())
-                        .map(existing -> {
-                            if (existing.getStatus() != AttendanceStatus.WAITING) {
-                                throw new DuplicateException(ErrorCode.DUPLICATE_ATTENDANCE);
-                            }
-                            existing.checkIn(status, checkInTime, nfcTag.getUid(), nfcTag.getLocation());
-                            return existing;
-                        })
-                        .orElseGet(
-                                () ->
-                                        attendanceRepository.save(
-                                                AttendanceRecord.builder()
-                                                        .userId(userId)
-                                                        .sessionId(session.getId())
-                                                        .status(status)
-                                                        .checkInTime(checkInTime)
-                                                        .nfcTagUid(nfcTag.getUid())
-                                                        .nfcLocation(nfcTag.getLocation())
-                                                        .build()));
+                findOrCreateRecordWithLock(userId, session, status, checkInTime, nfcTag);
 
         // 4-1. 이 세션의 대시보드 캐시(sessionDashboard) 무효화
         //    체크인으로 방금 대시보드 집계 숫자(출석/지각 수 등)가 바뀌었으니, TTL(5초)이 끝나길 기다리지 않고 즉시 지운다.
-        //    WebSocket 실시간 푸시(Day4)는 커밋 후(AFTER_COMMIT)에 재조회하지만, 이 캐시 삭제는 "삭제만" 할 뿐 값을
+        //    WebSocket 실시간 푸시는 커밋 후(AFTER_COMMIT)에 재조회하지만, 이 캐시 삭제는 "삭제만" 할 뿐 값을
         //    읽어서 내보내는 게 아니라서 롤백돼도 위험하지 않다 - 최악의 경우 캐시가 불필요하게 한 번 더 비워질 뿐이다.
         cacheManager.getCache(RedisConfig.CACHE_SESSION_DASHBOARD).evict(session.getId());
 
@@ -121,6 +119,68 @@ public class AttendanceService {
                 new AttendanceCheckedInEvent(session.getId(), attendanceRecord.getId()));
 
         return AttendanceResponse.from(attendanceRecord, user);
+    }
+
+    /**
+     * checkIn()의 "기존 레코드 조회 → 저장/갱신" 구간을 Redisson 분산 락으로 감싼 헬퍼.
+     * 락 키를 사용자+세션 단위로 잡아서, 같은 사람이 같은 세션에 짧은 시간 안에 여러 번 요청을
+     * 보내도(중복 클릭, 앱 재시도, 네트워크 재전송 등) 이 구간은 한 번에 한 스레드만 통과한다.
+     */
+    private AttendanceRecord findOrCreateRecordWithLock(
+            Long userId,
+            AttendanceSession session,
+            AttendanceStatus status,
+            LocalDateTime checkInTime,
+            NfcTag nfcTag) {
+        RLock lock = redissonClient.getLock(LOCK_KEY_PREFIX + userId + ":" + session.getId());
+        boolean acquired;
+        try {
+            // waitTime: 락을 못 얻으면 이 시간까지만 기다리고 포기한다 - 체크인은 즉시 끝나야 하는 작업이라,
+            //   오래 기다리게 하느니 빨리 "지금 처리 중이니 다시 시도해라" 응답을 주는 게 낫다.
+            // leaseTime: 락을 쥔 스레드가 예상치 못하게 죽어도(서버 장애 등) 이 시간 뒤엔 자동 해제되게
+            //   하는 안전장치 - 없으면 락을 쥔 채로 서버가 죽었을 때 그 세션 체크인이 영원히 막힐 수 있다.
+            //   DB 쿼리 몇 번이면 끝나는 짧은 구간이라 이 정도 여유면 충분하다.
+            acquired = lock.tryLock(LOCK_WAIT_SECONDS, LOCK_LEASE_SECONDS, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+        if (!acquired) {
+            // 락 획득 실패 = 지금 이 사용자의 같은 세션 체크인이 이미 처리 중이라는 뜻.
+            // DB까지 안 가고 여기서 바로 409로 응답해서 불필요한 경합/부하를 원천 차단한다.
+            throw new BusinessException(ErrorCode.CHECKIN_IN_PROGRESS);
+        }
+        try {
+            return attendanceRepository
+                    .findByUserIdAndSessionId(userId, session.getId())
+                    .map(existing -> {
+                        if (existing.getStatus() != AttendanceStatus.WAITING) {
+                            throw new DuplicateException(ErrorCode.DUPLICATE_ATTENDANCE);
+                        }
+                        existing.checkIn(status, checkInTime, nfcTag.getUid(), nfcTag.getLocation());
+                        return existing;
+                    })
+                    .orElseGet(
+                            () ->
+                                    attendanceRepository.save(
+                                            AttendanceRecord.builder()
+                                                    .userId(userId)
+                                                    .sessionId(session.getId())
+                                                    .status(status)
+                                                    .checkInTime(checkInTime)
+                                                    .nfcTagUid(nfcTag.getUid())
+                                                    .nfcLocation(nfcTag.getLocation())
+                                                    .build()));
+        } finally {
+            // 주의: 이 unlock()은 checkIn()이 return하기 전에 실행되지만, @Transactional의 실제 커밋은
+            //   프록시가 메서드 호출 전체를 감싸고 있어서 그보다 "이후"에 일어난다. 즉 락 해제와 실제
+            //   커밋 사이에 아주 짧은 틈이 있어, 이론적으로는 그 틈에 다른 요청이 락을 얻어 아직 커밋
+            //   안 된 상태를 보고 재경합할 여지가 완전히 0은 아니다. 완전히 없애려면 락을 트랜잭션 경계
+            //   바깥(별도 빈으로 분리)으로 빼야 하는데, 발생 확률이 극히 낮은 케이스로 보고 보류했다.
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
     }
 
     /** 내 출석 기록 조회 (STUDENT, 페이징) */
@@ -165,8 +225,8 @@ public class AttendanceService {
         // 도메인 메서드로 상태 변경 (누가/왜 바꿨는지 함께 기록)
         attendanceRecord.modifyStatus(request.getStatus(), modifiedBy, request.getModifyReason());
 
-        // 관리자가 수동으로 상태를 바꾼 직후 대시보드가 옛날 숫자를 보여주면 "방금 바꿨는데 왜 반영이 안 되지"로
-        // 보이기 쉬워서, checkIn()과 동일하게 즉시 캐시를 비운다.
+        // 관리자가 수동으로 상태를 바꾼 직후 대시보드가 옛날 숫자를 보여주면 "반영이 안 됐다"로 오해하기
+        // 쉬워서, checkIn()과 동일하게 즉시 캐시를 비운다.
         cacheManager.getCache(RedisConfig.CACHE_SESSION_DASHBOARD).evict(attendanceRecord.getSessionId());
 
         User user = userRepository.findById(attendanceRecord.getUserId()).orElse(null);
@@ -213,7 +273,7 @@ public class AttendanceService {
 
     /**
      * 출석 레코드 단건 상세 조회 - AttendanceEventListener가 체크인 커밋 후 실시간 푸시 페이로드를 만들 때 사용한다.
-     * (이벤트 발행 시점 값이 아니라 커밋이 확정된 뒤의 최신 상태를 다시 읽기 위함, 섹션 12 참고)
+     * (이벤트 발행 시점 값이 아니라 커밋이 확정된 뒤의 최신 상태를 다시 읽기 위함)
      */
     public AttendanceResponse getAttendanceRecord(Long attendanceId) {
         AttendanceRecord attendanceRecord =
