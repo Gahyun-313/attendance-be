@@ -3,6 +3,7 @@ package com.attendance.domain.attendance.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
@@ -30,6 +31,7 @@ import com.attendance.global.exception.ErrorCode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -39,6 +41,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.ApplicationEventPublisher;
@@ -52,6 +56,7 @@ import org.springframework.context.ApplicationEventPublisher;
  * 검증하는 주요 정책:
  * - NFC 태그가 없거나 비활성이면 출석 처리 불가, 이후 로직 미실행
  * - 활성 세션이 없으면 출석 처리 불가, 이후 로직 미실행
+ * - 같은 사용자+세션 체크인이 이미 처리 중(분산 락 획득 실패)이면 CHECKIN_IN_PROGRESS로 차단
  * - 이미 PRESENT 처리된 출석은 중복 체크인으로 차단
  * - WAITING 레코드가 있으면 신규 생성 없이 기존 레코드 갱신 (지각 기준 넘겼으면 LATE로도 갱신)
  * - 기존 레코드가 없으면 새 출석 레코드 생성
@@ -71,20 +76,29 @@ class AttendanceServiceTest {
     @Mock private SessionRepository sessionRepository;
     @Mock private NfcTagRepository nfcTagRepository;
     @Mock private UserRepository userRepository;
-    // 아래 둘은 AttendanceService 생성자에는 필요하지만 이 테스트들이 직접 검증하는 대상은 아님
+    // 아래는 AttendanceService 생성자에는 필요하지만 이 테스트들이 직접 검증하는 대상은 아님
     // (Mockito @InjectMocks는 생성자 인자 중 매칭되는 @Mock이 없으면 null을 채워 넣는데, 그러면
-    //  checkIn()의 eventPublisher.publishEvent(...) / evict() 호출부에서 NPE가 난다 - 그래서 목만 만들어 채워줌)
+    //  checkIn()의 eventPublisher.publishEvent(...) / evict() / 분산 락 호출부에서 NPE가 난다 - 그래서 목만 만들어 채워줌)
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private CacheManager cacheManager;
     @Mock private Cache cache;
+    @Mock private RedissonClient redissonClient;
+    @Mock private RLock rLock;
     @InjectMocks private AttendanceService attendanceService;
 
     @BeforeEach
-    void setUpCacheStub() {
+    void setUpCommonStubs() throws InterruptedException {
         // 세션 대시보드 캐시 무효화(evict) 호출이 여러 메서드(checkIn/markAbsentForRemainingWaiting 등)에 걸쳐 있어
         // 공통으로 스텁. lenient()를 쓴 이유: 이 스텁을 실제로 안 쓰는 테스트(예외로 일찍 끝나는 케이스)에서
         // Mockito의 strict stubbing이 "안 쓰인 스텁"이라고 실패시키는 것을 막기 위함
         lenient().when(cacheManager.getCache(anyString())).thenReturn(cache);
+
+        // 분산 락도 마찬가지 - 기본적으로 "락을 항상 즉시 획득 성공"하는 것으로 스텁해서, 락 자체를
+        // 검증하는 게 아닌 테스트들은 락이 없는 것처럼 원래 로직 그대로 흘러가게 한다.
+        // 락 경쟁 자체를 검증하는 테스트는 이 기본 스텁을 개별적으로 덮어써서 사용한다.
+        lenient().when(redissonClient.getLock(anyString())).thenReturn(rLock);
+        lenient().when(rLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(true);
+        lenient().when(rLock.isHeldByCurrentThread()).thenReturn(true);
     }
 
     private NfcTag activeTag() {
@@ -179,6 +193,33 @@ class AttendanceServiceTest {
         }
 
         @Test
+        @DisplayName("같은 사용자+세션 체크인이 이미 처리 중(락 획득 실패)이면 CHECKIN_IN_PROGRESS 예외가 발생한다")
+        void lockNotAcquired_throwsCheckInInProgressException() throws InterruptedException {
+            // given
+            // 다른 스레드가 이미 락을 쥐고 있어 tryLock()이 실패(false)를 반환하는 상황을 흉내낸다
+            NfcTag tag = activeTag();
+            AttendanceSession session = activeSession(10L, "A반", LocalDateTime.now().minusMinutes(5));
+            given(nfcTagRepository.findByUid("TAG-001")).willReturn(Optional.of(tag));
+            given(sessionRepository.findActiveSessionsByNfcTagId(any())).willReturn(List.of(session));
+            given(rLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).willReturn(false);
+            CheckInRequest request = new CheckInRequest("TAG-001");
+
+            // when & then
+            // 락을 못 얻으면 DB 조회 없이 바로 CHECKIN_IN_PROGRESS 예외가 발생해야 한다
+            assertThatThrownBy(() -> attendanceService.checkIn(1L, request))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorCode())
+                    .isEqualTo(ErrorCode.CHECKIN_IN_PROGRESS);
+
+            // 락을 못 얻었으므로 임계 구역(레코드 조회/저장)에는 아예 진입하지 않아야 함
+            verify(attendanceRepository, never()).findByUserIdAndSessionId(any(), any());
+            verify(attendanceRepository, never()).save(any());
+            // 획득 자체를 못 했으니 unlock()도 호출되면 안 됨 (isHeldByCurrentThread 스텁 기본값 true인 것과 별개로,
+            // 실제 코드가 acquired==false일 때 곧장 예외를 던지고 락 관련 try 블록에 진입하지 않는지 확인)
+            verify(rLock, never()).unlock();
+        }
+
+        @Test
         @DisplayName("이미 PRESENT로 처리된 레코드가 있으면 DUPLICATE_ATTENDANCE 예외가 발생한다")
         void alreadyPresentRecord_throwsDuplicateException() {
             // given
@@ -237,6 +278,8 @@ class AttendanceServiceTest {
             assertThat(waitingRecord.getStatus()).isEqualTo(AttendanceStatus.PRESENT);
             assertThat(response.getStatus()).isEqualTo(AttendanceStatus.PRESENT);
             verify(attendanceRepository, never()).save(any());
+            // 락이 정상적으로 획득되고(tryLock) 임계 구역이 끝난 뒤 반드시 해제(unlock)됐는지 확인
+            verify(rLock, times(1)).unlock();
         }
 
         @Test
