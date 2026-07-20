@@ -56,7 +56,6 @@ import org.springframework.context.ApplicationEventPublisher;
  * 검증하는 주요 정책:
  * - NFC 태그가 없거나 비활성이면 출석 처리 불가, 이후 로직 미실행
  * - 활성 세션이 없으면 출석 처리 불가, 이후 로직 미실행
- * - 같은 사용자+세션 체크인이 이미 처리 중(분산 락 획득 실패)이면 CHECKIN_IN_PROGRESS로 차단
  * - 이미 PRESENT 처리된 출석은 중복 체크인으로 차단
  * - WAITING 레코드가 있으면 신규 생성 없이 기존 레코드 갱신 (지각 기준 넘겼으면 LATE로도 갱신)
  * - 기존 레코드가 없으면 새 출석 레코드 생성
@@ -76,12 +75,14 @@ class AttendanceServiceTest {
     @Mock private SessionRepository sessionRepository;
     @Mock private NfcTagRepository nfcTagRepository;
     @Mock private UserRepository userRepository;
-    // 아래는 AttendanceService 생성자에는 필요하지만 이 테스트들이 직접 검증하는 대상은 아님
-    // (Mockito @InjectMocks는 생성자 인자 중 매칭되는 @Mock이 없으면 null을 채워 넣는데, 그러면
-    //  checkIn()의 eventPublisher.publishEvent(...) / evict() / 분산 락 호출부에서 NPE가 난다 - 그래서 목만 만들어 채워줌)
+    // 아래 둘은 AttendanceService 생성자에는 필요하지만 이 테스트들이 직접 검증하는 대상은 아님
+    //      Mockito @InjectMocks는 생성자 인자 중 매칭되는 @Mock이 없으면 null을 채워 넣는데,
+    //      그 경우 - checkIn()의 eventPublisher.publishEvent(...) / evict() 호출부에서 NPE가 난다.
+    //      -> 때문에 목만 만들어 채워준다.
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private CacheManager cacheManager;
     @Mock private Cache cache;
+    // Day6 Phase2 - checkIn()의 분산 락도 같은 이유로 목이 필요 (없으면 findOrCreateRecordWithLock에서 NPE)
     @Mock private RedissonClient redissonClient;
     @Mock private RLock rLock;
     @InjectMocks private AttendanceService attendanceService;
@@ -278,7 +279,9 @@ class AttendanceServiceTest {
             assertThat(waitingRecord.getStatus()).isEqualTo(AttendanceStatus.PRESENT);
             assertThat(response.getStatus()).isEqualTo(AttendanceStatus.PRESENT);
             verify(attendanceRepository, never()).save(any());
-            // 락이 정상적으로 획득되고(tryLock) 임계 구역이 끝난 뒤 반드시 해제(unlock)됐는지 확인
+            // 이 테스트는 실제 Spring 트랜잭션 없이 서비스 메서드를 직접 호출하므로(TransactionSynchronizationManager
+            // 비활성), releaseLockAfterTransaction()이 "커밋 후로 미루기"가 아니라 즉시 unlock하는 분기를 탄다 -
+            // 그래도 락이 정상적으로 해제됐는지는 동일하게 검증 가능
             verify(rLock, times(1)).unlock();
         }
 
