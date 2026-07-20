@@ -8,9 +8,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * FCM 푸시 토큰 엔티티
- * - 사용자가 앱을 설치/로그인하면 발급받는 FCM 토큰을 저장해두고, 나중에 알림을 보낼 때 이 테이블에서 대상 토큰을 찾아 쓴다.
- * - 한 사용자가 여러 기기(폰 교체, 재설치 등)를 쓸 수 있으므로 "User 1 : FcmToken 여러 개" 관계로 설계했다.
+ * FCM 푸시 토큰 엔티티 - 사용자가 앱을 설치/로그인하면 발급받는 FCM 토큰을 저장해두고, 나중에 알림을 보낼 때 이 테이블에서 대상 토큰을 찾아 쓴다. - 한 사용자가
+ * 여러 기기(폰 교체, 재설치 등)를 쓸 수 있으므로 "User 1 : FcmToken 여러 개" 관계로 설계했다.
  */
 @Entity
 @Table(
@@ -20,7 +19,9 @@ import lombok.NoArgsConstructor;
       @Index(name = "idx_fcm_token", columnList = "token")
     })
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED) // JPA는 기본 생성자가 필요하지만, 외부에서 new로 못 만들게 protected + @Builder만 열어둔다
+@NoArgsConstructor(
+    access =
+        AccessLevel.PROTECTED) // JPA는 기본 생성자가 필요하지만, 외부에서 new로 못 만들게 protected + @Builder만 열어둔다
 public class FcmToken {
 
   @Id
@@ -67,9 +68,8 @@ public class FcmToken {
   }
 
   /**
-   * 토큰 소유자를 바꾼다.
-   * 예: 같은 기기에서 A 계정으로 로그인해 토큰을 등록했다가 로그아웃 후 B 계정으로 다시 로그인한 경우,
-   *     토큰 값(기기 단위)은 그대로인데 주인만 A → B로 바뀌어야 한다. 이럴 때 사용.
+   * 토큰 소유자를 바꾼다. 예: 같은 기기에서 A 계정으로 로그인해 토큰을 등록했다가 로그아웃 후 B 계정으로 다시 로그인한 경우, 토큰 값(기기 단위)은 그대로인데 주인만
+   * A → B로 바뀌어야 한다. 이럴 때 사용.
    */
   public void reassignTo(Long userId) {
     this.userId = userId;

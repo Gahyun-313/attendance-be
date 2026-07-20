@@ -59,13 +59,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
    * @return 역할과 검색 조건에 맞는 사용자 목록의 페이지 객체
    */
   @Query(
-          "SELECT u FROM User u WHERE u.role = :role AND (u.username LIKE %:keyword% OR u.name LIKE %:keyword%)")
+      "SELECT u FROM User u WHERE u.role = :role AND (u.username LIKE %:keyword% OR u.name LIKE %:keyword%)")
   Page<User> searchByRoleAndKeyword(
-          @Param("role") UserRole role, @Param("keyword") String keyword, Pageable pageable);
+      @Param("role") UserRole role, @Param("keyword") String keyword, Pageable pageable);
 
   /**
-   * 학생 목록 조회 (그룹/이름·학번 검색, 페이징) - GET /api/users (ADMIN)에서 사용 - groupName, keyword는 선택값이며
-   * null이면 해당 조건 미적용 - ADMIN 계정은 DB에서 직접 관리하므로 role=STUDENT로 고정 조회
+   * 학생 목록 조회 (그룹/이름·학번 검색, 페이징) - GET /api/users (ADMIN)에서 사용 - groupName, keyword는 선택값이며 null이면 해당
+   * 조건 미적용 - ADMIN 계정은 DB에서 직접 관리하므로 role=STUDENT로 고정 조회
    *
    * @param role 조회할 사용자 역할 (STUDENT 고정)
    * @param groupName 그룹명 필터 (선택, null이면 전체)
@@ -74,25 +74,25 @@ public interface UserRepository extends JpaRepository<User, Long> {
    * @return 조건에 맞는 사용자 목록의 페이지 객체
    */
   @Query(
-          "SELECT u FROM User u WHERE u.role = :role "
-                  + "AND (:groupName IS NULL OR u.groupName = :groupName) "
-                  + "AND (:keyword IS NULL OR u.username LIKE %:keyword% OR u.name LIKE %:keyword%)")
+      "SELECT u FROM User u WHERE u.role = :role "
+          + "AND (:groupName IS NULL OR u.groupName = :groupName) "
+          + "AND (:keyword IS NULL OR u.username LIKE %:keyword% OR u.name LIKE %:keyword%)")
   Page<User> searchStudents(
-          @Param("role") UserRole role,
-          @Param("groupName") String groupName,
-          @Param("keyword") String keyword,
-          Pageable pageable);
+      @Param("role") UserRole role,
+      @Param("groupName") String groupName,
+      @Param("keyword") String keyword,
+      Pageable pageable);
 
   /**
-   * 존재하는 그룹명 목록 조회 (distinct) - GET /api/users/groups (ADMIN)에서 사용 - 어드민 웹에서 세션 생성 시 그룹 선택
-   * 드롭다운 등에 활용 - null 그룹명은 제외, 그룹명 오름차순 정렬
+   * 존재하는 그룹명 목록 조회 (distinct) - GET /api/users/groups (ADMIN)에서 사용 - 어드민 웹에서 세션 생성 시 그룹 선택 드롭다운 등에
+   * 활용 - null 그룹명은 제외, 그룹명 오름차순 정렬
    *
    * @param role 조회할 사용자 역할 (STUDENT 고정)
    * @return 중복 제거된 그룹명 목록
    */
   @Query(
-          "SELECT DISTINCT u.groupName FROM User u "
-                  + "WHERE u.role = :role AND u.groupName IS NOT NULL ORDER BY u.groupName")
+      "SELECT DISTINCT u.groupName FROM User u "
+          + "WHERE u.role = :role AND u.groupName IS NOT NULL ORDER BY u.groupName")
   List<String> findDistinctGroupNames(@Param("role") UserRole role);
 
   /**

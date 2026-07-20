@@ -33,7 +33,7 @@ public class AuthController {
   /** 토큰 갱신 POST /api/auth/refresh */
   @PostMapping("/refresh")
   public ResponseEntity<ApiResponse<AuthResponse>> refresh(
-          @Valid @RequestBody TokenRefreshRequest request) {
+      @Valid @RequestBody TokenRefreshRequest request) {
     AuthResponse response = authService.refresh(request);
     return ResponseEntity.ok(ApiResponse.success(response, "토큰이 갱신되었습니다"));
   }
@@ -41,7 +41,7 @@ public class AuthController {
   /** 로그아웃 POST /api/auth/logout */
   @PostMapping("/logout")
   public ResponseEntity<ApiResponse<Void>> logout(
-          @AuthenticationPrincipal CustomUserDetails userDetails) {
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
     authService.logout(userDetails.getUserId());
     return ResponseEntity.ok(ApiResponse.success("로그아웃되었습니다"));
   }

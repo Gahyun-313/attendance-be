@@ -11,6 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CheckInRequest {
 
-    @NotBlank(message = "NFC 태그 UID는 필수입니다")
-    private String nfcTagUid;
+  @NotBlank(message = "NFC 태그 UID는 필수입니다")
+  private String nfcTagUid;
 }

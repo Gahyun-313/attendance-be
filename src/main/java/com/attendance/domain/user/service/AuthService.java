@@ -1,6 +1,5 @@
 package com.attendance.domain.user.service;
 
-import java.time.LocalDateTime;
 import com.attendance.domain.user.dto.AuthResponse;
 import com.attendance.domain.user.dto.LoginRequest;
 import com.attendance.domain.user.dto.TokenRefreshRequest;
@@ -12,6 +11,7 @@ import com.attendance.global.exception.BusinessException;
 import com.attendance.global.exception.EntityNotFoundException;
 import com.attendance.global.exception.ErrorCode;
 import com.attendance.global.security.JwtTokenProvider;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -32,9 +32,9 @@ public class AuthService {
   @Transactional
   public AuthResponse login(LoginRequest request) {
     User user =
-            userRepository
-                    .findByUsername(request.getUsername())
-                    .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
+        userRepository
+            .findByUsername(request.getUsername())
+            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
 
     if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
       throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
@@ -46,22 +46,23 @@ public class AuthService {
     }
 
     String accessToken =
-            jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+        jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
     String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getUsername());
 
     refreshTokenRepository.deleteByUserId(user.getId());
 
     refreshTokenRepository.save(
-            RefreshToken.builder()
-                    .userId(user.getId())
-                    .token(refreshToken)
-                    // Refresh Token 만료 시각 - DB에서 만료 여부 확인에 사용
-                    .expiresAt(LocalDateTime.now().plusSeconds(
-                            jwtTokenProvider.getRefreshTokenExpirationSeconds()))
-                    .build());
+        RefreshToken.builder()
+            .userId(user.getId())
+            .token(refreshToken)
+            // Refresh Token 만료 시각 - DB에서 만료 여부 확인에 사용
+            .expiresAt(
+                LocalDateTime.now()
+                    .plusSeconds(jwtTokenProvider.getRefreshTokenExpirationSeconds()))
+            .build());
 
     return AuthResponse.of(
-            accessToken, refreshToken, jwtTokenProvider.getAccessTokenExpirationSeconds(), user);
+        accessToken, refreshToken, jwtTokenProvider.getAccessTokenExpirationSeconds(), user);
   }
 
   /** 토큰 갱신 */
@@ -74,20 +75,20 @@ public class AuthService {
     }
 
     RefreshToken savedToken =
-            refreshTokenRepository
-                    .findByToken(requestToken)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
+        refreshTokenRepository
+            .findByToken(requestToken)
+            .orElseThrow(() -> new BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
 
     User user =
-            userRepository
-                    .findById(savedToken.getUserId())
-                    .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+        userRepository
+            .findById(savedToken.getUserId())
+            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
 
     String newAccessToken =
-            jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+        jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
 
     return AuthResponse.ofAccessToken(
-            newAccessToken, jwtTokenProvider.getAccessTokenExpirationSeconds());
+        newAccessToken, jwtTokenProvider.getAccessTokenExpirationSeconds());
   }
 
   /** 로그아웃 */

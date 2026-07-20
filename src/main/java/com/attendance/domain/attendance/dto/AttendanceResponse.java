@@ -14,43 +14,40 @@ import lombok.Getter;
 @AllArgsConstructor
 public class AttendanceResponse {
 
-    private Long id;
-    private Long userId;
-    private String userName;   // User.name
-    private String studentId;  // User.studentId
-    private String groupName;  // User.groupName
-    private Long sessionId;
-    private AttendanceStatus status;
-    private LocalDateTime checkInTime;
-    private String nfcTagUid;
-    private String nfcLocation;
-    private String modifiedBy;
-    private String modifyReason;
-    private String note;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+  private Long id;
+  private Long userId;
+  private String userName; // User.name
+  private String studentId; // User.studentId
+  private String groupName; // User.groupName
+  private Long sessionId;
+  private AttendanceStatus status;
+  private LocalDateTime checkInTime;
+  private String nfcTagUid;
+  private String nfcLocation;
+  private String modifiedBy;
+  private String modifyReason;
+  private String note;
+  private LocalDateTime createdAt;
+  private LocalDateTime updatedAt;
 
-    /**
-     * 엔티티 + User를 Response로 변환.
-     * user가 null이면 사용자 정보 필드는 null로 둔다 (레코드는 있으나 사용자 조회 실패 등 방어).
-     */
-    public static AttendanceResponse from(AttendanceRecord attendanceRecord, User user) {
-        return AttendanceResponse.builder()
-                .id(attendanceRecord.getId())
-                .userId(attendanceRecord.getUserId())
-                .userName(user != null ? user.getName() : null)
-                .studentId(user != null ? user.getStudentId() : null)
-                .groupName(user != null ? user.getGroupName() : null)
-                .sessionId(attendanceRecord.getSessionId())
-                .status(attendanceRecord.getStatus())
-                .checkInTime(attendanceRecord.getCheckInTime())
-                .nfcTagUid(attendanceRecord.getNfcTagUid())
-                .nfcLocation(attendanceRecord.getNfcLocation())
-                .modifiedBy(attendanceRecord.getModifiedBy())
-                .modifyReason(attendanceRecord.getModifyReason())
-                .note(attendanceRecord.getNote())
-                .createdAt(attendanceRecord.getCreatedAt())
-                .updatedAt(attendanceRecord.getUpdatedAt())
-                .build();
-    }
+  /** 엔티티 + User를 Response로 변환. user가 null이면 사용자 정보 필드는 null로 둔다 (레코드는 있으나 사용자 조회 실패 등 방어). */
+  public static AttendanceResponse from(AttendanceRecord attendanceRecord, User user) {
+    return AttendanceResponse.builder()
+        .id(attendanceRecord.getId())
+        .userId(attendanceRecord.getUserId())
+        .userName(user != null ? user.getName() : null)
+        .studentId(user != null ? user.getStudentId() : null)
+        .groupName(user != null ? user.getGroupName() : null)
+        .sessionId(attendanceRecord.getSessionId())
+        .status(attendanceRecord.getStatus())
+        .checkInTime(attendanceRecord.getCheckInTime())
+        .nfcTagUid(attendanceRecord.getNfcTagUid())
+        .nfcLocation(attendanceRecord.getNfcLocation())
+        .modifiedBy(attendanceRecord.getModifiedBy())
+        .modifyReason(attendanceRecord.getModifyReason())
+        .note(attendanceRecord.getNote())
+        .createdAt(attendanceRecord.getCreatedAt())
+        .updatedAt(attendanceRecord.getUpdatedAt())
+        .build();
+  }
 }

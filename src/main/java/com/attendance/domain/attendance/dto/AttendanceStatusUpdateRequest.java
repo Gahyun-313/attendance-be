@@ -14,12 +14,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AttendanceStatusUpdateRequest {
 
-    // 변경할 출석 상태 (PRESENT/LATE/ABSENT/WAITING)
-    @NotNull(message = "변경할 출석 상태는 필수입니다")
-    private AttendanceStatus status;
+  // 변경할 출석 상태 (PRESENT/LATE/ABSENT/WAITING)
+  @NotNull(message = "변경할 출석 상태는 필수입니다")
+  private AttendanceStatus status;
 
-    // 변경 사유 - 관리자가 상태를 수정할 때 필수 작성
-    @NotBlank(message = "변경 사유는 필수입니다")
-    @Size(max = 500, message = "변경 사유는 500자를 초과할 수 없습니다")
-    private String modifyReason;
+  // 변경 사유 - 관리자가 상태를 수정할 때 필수 작성
+  @NotBlank(message = "변경 사유는 필수입니다")
+  @Size(max = 500, message = "변경 사유는 500자를 초과할 수 없습니다")
+  private String modifyReason;
 }
