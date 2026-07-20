@@ -47,7 +47,6 @@ public class AttendanceService {
     // 체크인 분산 락 설정값 - 값 근거는 findOrCreateRecordWithLock() 주석 참고
     private static final String LOCK_KEY_PREFIX = "lock:checkin:";
     private static final long LOCK_WAIT_SECONDS = 3L;
-    private static final long LOCK_LEASE_SECONDS = 3L;
 
     private final AttendanceRepository attendanceRepository;
     private final SessionRepository sessionRepository;
@@ -137,10 +136,15 @@ public class AttendanceService {
         try {
             // waitTime(3초): 락을 못 얻으면 3초까지만 기다리고 포기한다 - 체크인은 원래 즉시 끝나야 하는
             //   작업이라, 오래 기다리게 하느니 빨리 "지금 처리 중이니 다시 시도해라" 응답을 주는 게 낫다.
-            // leaseTime(3초): 락을 쥔 스레드가 예상치 못하게 죽어도(서버 장애 등) 3초 뒤엔 자동 해제되게
-            //   하는 안전장치 - 이게 없으면 락을 쥔 채로 서버가 죽었을 때 그 세션 체크인이 영원히
-            //   막힐 수 있다. DB 쿼리 몇 번이면 끝나는 짧은 구간이라 3초면 충분히 여유 있다.
-            acquired = lock.tryLock(LOCK_WAIT_SECONDS, LOCK_LEASE_SECONDS, TimeUnit.SECONDS);
+            // leaseTime을 명시하지 않은 이유(=워치독 활성화): 이 락은 releaseLockAfterTransaction()에서
+            //   실제 트랜잭션 커밋 이후에야 풀리기 때문에, 실제 점유 시간이 checkIn() 전체(DB 커넥션 풀
+            //   경합 등으로 부하 상황에선 들쭉날쭉해질 수 있음)만큼 늘어난다. 이런 상황에서 leaseTime을
+            //   고정값(예: 3초)으로 주면, 실제 처리 시간이 그 값에 근접/초과할 때 아직 안 끝났는데도 Redis가
+            //   락을 먼저 강제로 만료시켜버려 다른 스레드가 끼어드는 사고가 날 수 있다(실제로 부하 테스트에서
+            //   재현됨). Redisson의 워치독은 락을 쥔 동안 만료 시간을 자동으로 계속 연장해줘서 이 문제를
+            //   없앤다 - 서버가 진짜로 죽으면(연장이 멈추면) 기본 30초 뒤에 자동 해제되는 안전장치는 그대로
+            //   유지된다.
+            acquired = lock.tryLock(LOCK_WAIT_SECONDS, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
