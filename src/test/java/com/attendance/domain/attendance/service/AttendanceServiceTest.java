@@ -76,9 +76,8 @@ class AttendanceServiceTest {
     @Mock private NfcTagRepository nfcTagRepository;
     @Mock private UserRepository userRepository;
     // 아래 둘은 AttendanceService 생성자에는 필요하지만 이 테스트들이 직접 검증하는 대상은 아님
-    //      Mockito @InjectMocks는 생성자 인자 중 매칭되는 @Mock이 없으면 null을 채워 넣는데,
-    //      그 경우 - checkIn()의 eventPublisher.publishEvent(...) / evict() 호출부에서 NPE가 난다.
-    //      -> 때문에 목만 만들어 채워준다.
+    // (Mockito @InjectMocks는 생성자 인자 중 매칭되는 @Mock이 없으면 null을 채워 넣는데, 그러면
+    //  checkIn()의 eventPublisher.publishEvent(...) / evict() 호출부에서 NPE가 난다 - 그래서 목만 만들어 채워줌)
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private CacheManager cacheManager;
     @Mock private Cache cache;
@@ -98,7 +97,9 @@ class AttendanceServiceTest {
         // 검증하는 게 아닌 테스트들은 락이 없는 것처럼 원래 로직 그대로 흘러가게 한다.
         // 락 경쟁 자체를 검증하는 테스트는 이 기본 스텁을 개별적으로 덮어써서 사용한다.
         lenient().when(redissonClient.getLock(anyString())).thenReturn(rLock);
-        lenient().when(rLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(true);
+        // leaseTime을 명시하지 않는 2-인자 tryLock(waitTime, unit)으로 호출하도록 바뀜(워치독 활성화) - 자세한
+        // 이유는 AttendanceService.findOrCreateRecordWithLock() 주석 참고
+        lenient().when(rLock.tryLock(anyLong(), any(TimeUnit.class))).thenReturn(true);
         lenient().when(rLock.isHeldByCurrentThread()).thenReturn(true);
     }
 
@@ -202,7 +203,7 @@ class AttendanceServiceTest {
             AttendanceSession session = activeSession(10L, "A반", LocalDateTime.now().minusMinutes(5));
             given(nfcTagRepository.findByUid("TAG-001")).willReturn(Optional.of(tag));
             given(sessionRepository.findActiveSessionsByNfcTagId(any())).willReturn(List.of(session));
-            given(rLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).willReturn(false);
+            given(rLock.tryLock(anyLong(), any(TimeUnit.class))).willReturn(false);
             CheckInRequest request = new CheckInRequest("TAG-001");
 
             // when & then
