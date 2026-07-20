@@ -18,7 +18,6 @@ import com.attendance.global.config.RedissonTestConfig;
 import com.attendance.global.security.JwtTokenProvider;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,10 +44,16 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * @AutoConfigureTestDatabase(replace = ANY)로 인메모리 H2를 사용한다.
  *
- * <p>[Day6 추가] 이 테스트는 대시보드 조회(GET .../dashboard)를 두 번 호출하는데, 실제 프로필(local)이
+ * <p>[Day6 Phase1 추가] 이 테스트는 대시보드 조회(GET .../dashboard)를 두 번 호출하는데, 실제 프로필(local)이
  * spring.cache.type: redis를 쓰기 때문에 그대로 두면 이 테스트가 로컬 Redis 서버가 떠 있어야만 통과하는
  * 테스트가 돼버린다 - DB 흐름을 검증하는 게 목적이지 캐싱 자체를 검증하는 게 아니므로, spring.cache.type을
  * none으로 덮어써서 이 테스트만큼은 캐시 없이(매번 새로 계산해서) 동작하게 만들었다.
+ *
+ * <p>[Day6 Phase2 추가] redisson-spring-boot-starter를 추가하면서 checkIn()이 이제 실제 RedissonClient로
+ * 분산 락을 시도한다. spring.cache.type과 달리 이건 끄는 프로퍼티가 따로 없어서(Redisson은 클래스패스에
+ * 있으면 무조건 자동 설정됨), RedissonTestConfig를 @Import해 실제 Redis 연결 없이도 체크인 흐름을 검증할
+ * 수 있게 했다. 다른 @SpringBootTest는 이 mock을 그냥 컨텍스트가 뜨게만 하는 용도로 쓰지만, 여기는
+ * 실제로 checkIn()을 호출하므로 아래 @BeforeEach에서 tryLock() 등을 "항상 성공"으로 추가 스텁한다.
  */
 @Import(RedissonTestConfig.class)
 @SpringBootTest
@@ -63,6 +68,8 @@ class AttendanceFlowIntegrationTest {
     @Autowired private NfcTagRepository nfcTagRepository;
     @Autowired private SessionRepository sessionRepository;
     @Autowired private JwtTokenProvider jwtTokenProvider;
+
+    // RedissonTestConfig가 제공하는 mock 빈(@Primary) - 아래 @BeforeEach에서 락 관련 동작을 추가로 스텁한다
     @Autowired private RedissonClient redissonClient;
 
     private String tokenFor(User user) {
@@ -76,7 +83,9 @@ class AttendanceFlowIntegrationTest {
         // 이 테스트가 실제 Redis 서버 없이도 항상 락을 즉시 획득한 것처럼 동작하도록 미리 스텁해둔다.
         RLock lock = Mockito.mock(RLock.class);
         Mockito.when(redissonClient.getLock(ArgumentMatchers.anyString())).thenReturn(lock);
-        Mockito.when(lock.tryLock(ArgumentMatchers.anyLong(), ArgumentMatchers.anyLong(), ArgumentMatchers.any(TimeUnit.class)))
+        // leaseTime을 명시하지 않는 2-인자 tryLock(waitTime, unit)으로 호출하도록 바뀜(워치독 활성화) - 자세한
+        // 이유는 AttendanceService.findOrCreateRecordWithLock() 주석 참고
+        Mockito.when(lock.tryLock(ArgumentMatchers.anyLong(), ArgumentMatchers.any(TimeUnit.class)))
                 .thenReturn(true);
         Mockito.when(lock.isHeldByCurrentThread()).thenReturn(true);
     }
