@@ -35,6 +35,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /** 출석 기록 비즈니스 로직 */
 @Service
@@ -42,7 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AttendanceService {
 
-    // 체크인 분산 락 설정값 - 근거는 findOrCreateRecordWithLock() 주석 참고
+    // 체크인 분산 락 설정값 - 값 근거는 findOrCreateRecordWithLock() 주석 참고
     private static final String LOCK_KEY_PREFIX = "lock:checkin:";
     private static final long LOCK_WAIT_SECONDS = 3L;
     private static final long LOCK_LEASE_SECONDS = 3L;
@@ -53,11 +55,9 @@ public class AttendanceService {
     private final UserRepository userRepository;
     private final ApplicationEventPublisher eventPublisher; // 체크인 완료 후 실시간 푸시 트리거용
     private final CacheManager cacheManager; // 세션 대시보드 캐시(sessionDashboard)를 수동으로 비우는 데 사용
-
-    // 동시 체크인 경합 방지용 분산 락.
-    // RedisConfig처럼 별도 Config 클래스가 없는 이유 -> redisson-spring-boot-starter는 의존성만 추가하면
-    // application-local.yml의 spring.data.redis.host/port를 그대로 읽어 RedissonClient 빈을 자동으로
-    // 만들어주기 때문에 @Bean으로 직접 만들 필요가 없다.
+    // 동시 체크인 경합 방지용 분산 락. RedisConfig처럼 별도 Config 클래스가 없는 이유:
+    // redisson-spring-boot-starter는 의존성만 추가하면 application-local.yml의 spring.data.redis.host/port를
+    // 그대로 읽어서 RedissonClient 빈을 자동으로 만들어준다 - 직접 @Bean으로 만들 필요가 없다.
     private final RedissonClient redissonClient;
 
     /**
@@ -91,11 +91,11 @@ public class AttendanceService {
                 session.isLate(checkInTime) ? AttendanceStatus.LATE : AttendanceStatus.PRESENT;
 
         // 4. 분산 락으로 감싼 임계 구역 - 기존 레코드 조회 + 저장/갱신
-        //    같은 사용자가 같은 세션에 짧은 시간 안에 중복 요청을 보내면(중복 클릭, 앱 재시도 등), 여러 요청이
-        //    동시에 findByUserIdAndSessionId에서 "없음"을 보고 각자 save()를 시도해 DB Unique 제약 위반이
-        //    처리되지 않은 채 500으로 노출되는 문제가 있었다 - 락은 이 구간만 감싼다. NFC 태그 검증/세션 조회
-        //    (1~3단계)까지 락으로 감싸면 락을 쥐는 시간만 늘어나고 얻는 게 없다.
-        //    (락 키가 사용자+세션 단위라 다른 사용자의 체크인과는 어차피 안 겹치기 때문)
+        //    동시 체크인 부하 테스트에서, 여러 요청이 동시에 findByUserIdAndSessionId에서 "없음"을 보고
+        //    각자 save()를 시도해 DB Unique 제약 위반이 그대로 500으로 노출되는 경합이 확인됐다
+        //    (concepts.md 참고). 락은 이 구간만 감싼다 - NFC 태그 검증/세션 조회(1~3단계)까지 락으로
+        //    감싸면 락을 쥐고 있는 시간이 길어져 다른 요청까지 불필요하게 느려진다 (락 키가 사용자+세션
+        //    단위라 다른 사용자는 어차피 안 겹치지만).
         AttendanceRecord attendanceRecord =
                 findOrCreateRecordWithLock(userId, session, status, checkInTime, nfcTag);
 
@@ -135,11 +135,11 @@ public class AttendanceService {
         RLock lock = redissonClient.getLock(LOCK_KEY_PREFIX + userId + ":" + session.getId());
         boolean acquired;
         try {
-            // waitTime: 락을 못 얻으면 이 시간까지만 기다리고 포기한다 - 체크인은 즉시 끝나야 하는 작업이라,
-            //   오래 기다리게 하느니 빨리 "지금 처리 중이니 다시 시도해라" 응답을 주는 게 낫다.
-            // leaseTime: 락을 쥔 스레드가 예상치 못하게 죽어도(서버 장애 등) 이 시간 뒤엔 자동 해제되게
-            //   하는 안전장치 - 없으면 락을 쥔 채로 서버가 죽었을 때 그 세션 체크인이 영원히 막힐 수 있다.
-            //   DB 쿼리 몇 번이면 끝나는 짧은 구간이라 이 정도 여유면 충분하다.
+            // waitTime(3초): 락을 못 얻으면 3초까지만 기다리고 포기한다 - 체크인은 원래 즉시 끝나야 하는
+            //   작업이라, 오래 기다리게 하느니 빨리 "지금 처리 중이니 다시 시도해라" 응답을 주는 게 낫다.
+            // leaseTime(3초): 락을 쥔 스레드가 예상치 못하게 죽어도(서버 장애 등) 3초 뒤엔 자동 해제되게
+            //   하는 안전장치 - 이게 없으면 락을 쥔 채로 서버가 죽었을 때 그 세션 체크인이 영원히
+            //   막힐 수 있다. DB 쿼리 몇 번이면 끝나는 짧은 구간이라 3초면 충분히 여유 있다.
             acquired = lock.tryLock(LOCK_WAIT_SECONDS, LOCK_LEASE_SECONDS, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -150,33 +150,62 @@ public class AttendanceService {
             // DB까지 안 가고 여기서 바로 409로 응답해서 불필요한 경합/부하를 원천 차단한다.
             throw new BusinessException(ErrorCode.CHECKIN_IN_PROGRESS);
         }
-        try {
-            return attendanceRepository
-                    .findByUserIdAndSessionId(userId, session.getId())
-                    .map(existing -> {
-                        if (existing.getStatus() != AttendanceStatus.WAITING) {
-                            throw new DuplicateException(ErrorCode.DUPLICATE_ATTENDANCE);
+
+        // 락을 획득한 순간부터는 이후 어떤 경로로 메서드를 벗어나든(정상 반환/예외 모두) 반드시 한 번은
+        // 풀리도록 해제 시점을 미리 등록해둔다. 여기서 곧바로 unlock()하지 않는 이유는 아래
+        // releaseLockAfterTransaction() 주석 참고.
+        releaseLockAfterTransaction(lock);
+
+        return attendanceRepository
+                .findByUserIdAndSessionId(userId, session.getId())
+                .map(existing -> {
+                    if (existing.getStatus() != AttendanceStatus.WAITING) {
+                        throw new DuplicateException(ErrorCode.DUPLICATE_ATTENDANCE);
+                    }
+                    existing.checkIn(status, checkInTime, nfcTag.getUid(), nfcTag.getLocation());
+                    return existing;
+                })
+                .orElseGet(
+                        () ->
+                                attendanceRepository.save(
+                                        AttendanceRecord.builder()
+                                                .userId(userId)
+                                                .sessionId(session.getId())
+                                                .status(status)
+                                                .checkInTime(checkInTime)
+                                                .nfcTagUid(nfcTag.getUid())
+                                                .nfcLocation(nfcTag.getLocation())
+                                                .build()));
+    }
+
+    /**
+     * 락 해제 시점을 "이 메서드가 끝나는 시점"이 아니라 "이 메서드를 호출한 트랜잭션이 실제로 끝나는
+     * 시점"으로 미룬다.
+     *
+     * checkIn()은 @Transactional이라 실제 커밋은 Spring 프록시가 메서드 호출 전체를 감싸고 있다가
+     * checkIn()이 완전히 return한 "이후"에 처리한다. 만약 여기서 곧바로 unlock()을 호출하면, 락은 풀렸지만
+     * 아직 커밋 전인 구간(캐시 무효화, nfcTag/user 갱신, 이벤트 발행 등 checkIn()의 남은 단계)이 그대로
+     * 남아있어 다른 요청이 그 틈에 락을 잡고 "아직 커밋 안 된 상태(레코드 없음)"를 보고 또 INSERT를 시도하는
+     * 경합이 그대로 재현된다 - 실제로 동시 체크인 20건 부하 테스트에서 이 문제가 500 에러로 확인됐다
+     * (평균 응답시간이 200ms대라 이 틈이 "무시할 수준"이 아니었다).
+     *
+     * afterCompletion 콜백으로 해제를 미루면, 다음 요청은 반드시 "이전 트랜잭션이 커밋을 마친 뒤"에만 락을
+     * 잡을 수 있게 되어 이 경합이 사라진다.
+     */
+    private void releaseLockAfterTransaction(RLock lock) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override
+                        public void afterCompletion(int status) {
+                            if (lock.isHeldByCurrentThread()) {
+                                lock.unlock();
+                            }
                         }
-                        existing.checkIn(status, checkInTime, nfcTag.getUid(), nfcTag.getLocation());
-                        return existing;
-                    })
-                    .orElseGet(
-                            () ->
-                                    attendanceRepository.save(
-                                            AttendanceRecord.builder()
-                                                    .userId(userId)
-                                                    .sessionId(session.getId())
-                                                    .status(status)
-                                                    .checkInTime(checkInTime)
-                                                    .nfcTagUid(nfcTag.getUid())
-                                                    .nfcLocation(nfcTag.getLocation())
-                                                    .build()));
-        } finally {
-            // 주의: 이 unlock()은 checkIn()이 return하기 전에 실행되지만, @Transactional의 실제 커밋은
-            //   프록시가 메서드 호출 전체를 감싸고 있어서 그보다 "이후"에 일어난다. 즉 락 해제와 실제
-            //   커밋 사이에 아주 짧은 틈이 있어, 이론적으로는 그 틈에 다른 요청이 락을 얻어 아직 커밋
-            //   안 된 상태를 보고 재경합할 여지가 완전히 0은 아니다. 완전히 없애려면 락을 트랜잭션 경계
-            //   바깥(별도 빈으로 분리)으로 빼야 하는데, 발생 확률이 극히 낮은 케이스로 보고 보류했다.
+                    });
+        } else {
+            // 실제 Spring 트랜잭션 없이 서비스 메서드가 직접 호출되는 경우(예: Mockito 기반 단위 테스트) -
+            // 기다릴 커밋 자체가 없으므로 곧바로 해제한다.
             if (lock.isHeldByCurrentThread()) {
                 lock.unlock();
             }
@@ -225,8 +254,8 @@ public class AttendanceService {
         // 도메인 메서드로 상태 변경 (누가/왜 바꿨는지 함께 기록)
         attendanceRecord.modifyStatus(request.getStatus(), modifiedBy, request.getModifyReason());
 
-        // 관리자가 수동으로 상태를 바꾼 직후 대시보드가 옛날 숫자를 보여주면 "반영이 안 됐다"로 오해하기
-        // 쉬워서, checkIn()과 동일하게 즉시 캐시를 비운다.
+        // 관리자가 수동으로 상태를 바꾼 직후 대시보드가 옛날 숫자를 보여주면 "방금 바꿨는데 왜 반영이 안 되지"로
+        // 보이기 쉬워서, checkIn()과 동일하게 즉시 캐시를 비운다.
         cacheManager.getCache(RedisConfig.CACHE_SESSION_DASHBOARD).evict(attendanceRecord.getSessionId());
 
         User user = userRepository.findById(attendanceRecord.getUserId()).orElse(null);
@@ -273,7 +302,7 @@ public class AttendanceService {
 
     /**
      * 출석 레코드 단건 상세 조회 - AttendanceEventListener가 체크인 커밋 후 실시간 푸시 페이로드를 만들 때 사용한다.
-     * (이벤트 발행 시점 값이 아니라 커밋이 확정된 뒤의 최신 상태를 다시 읽기 위함)
+     * (이벤트 발행 시점 값이 아니라 커밋이 확정된 뒤의 최신 상태를 다시 읽기 위함, 섹션 12 참고)
      */
     public AttendanceResponse getAttendanceRecord(Long attendanceId) {
         AttendanceRecord attendanceRecord =
