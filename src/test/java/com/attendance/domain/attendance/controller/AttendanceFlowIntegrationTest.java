@@ -14,14 +14,23 @@ import com.attendance.domain.session.repository.SessionRepository;
 import com.attendance.domain.user.entity.User;
 import com.attendance.domain.user.entity.UserRole;
 import com.attendance.domain.user.repository.UserRepository;
+import com.attendance.global.config.RedissonTestConfig;
 import com.attendance.global.security.JwtTokenProvider;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -41,6 +50,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 테스트가 돼버린다 - DB 흐름을 검증하는 게 목적이지 캐싱 자체를 검증하는 게 아니므로, spring.cache.type을
  * none으로 덮어써서 이 테스트만큼은 캐시 없이(매번 새로 계산해서) 동작하게 만들었다.
  */
+@Import(RedissonTestConfig.class)
 @SpringBootTest
 @AutoConfigureMockMvc
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
@@ -53,10 +63,22 @@ class AttendanceFlowIntegrationTest {
     @Autowired private NfcTagRepository nfcTagRepository;
     @Autowired private SessionRepository sessionRepository;
     @Autowired private JwtTokenProvider jwtTokenProvider;
+    @Autowired private RedissonClient redissonClient;
 
     private String tokenFor(User user) {
         // 실제 로그인 과정을 거치지 않고, 저장된 사용자 정보로 바로 유효한 토큰을 발급 (테스트 편의)
         return jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+    }
+
+    @BeforeEach
+    void setUpDistributedLockStub() throws InterruptedException {
+        // checkIn()의 findOrCreateRecordWithLock()이 redissonClient.getLock(...).tryLock(...)을 호출하므로,
+        // 이 테스트가 실제 Redis 서버 없이도 항상 락을 즉시 획득한 것처럼 동작하도록 미리 스텁해둔다.
+        RLock lock = Mockito.mock(RLock.class);
+        Mockito.when(redissonClient.getLock(ArgumentMatchers.anyString())).thenReturn(lock);
+        Mockito.when(lock.tryLock(ArgumentMatchers.anyLong(), ArgumentMatchers.anyLong(), ArgumentMatchers.any(TimeUnit.class)))
+                .thenReturn(true);
+        Mockito.when(lock.isHeldByCurrentThread()).thenReturn(true);
     }
 
     @Test
