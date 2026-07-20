@@ -45,6 +45,7 @@ public enum ErrorCode {
   ATTENDANCE_NOT_FOUND(HttpStatus.NOT_FOUND, "AT001", "출석 기록을 찾을 수 없습니다"),
   DUPLICATE_ATTENDANCE(HttpStatus.CONFLICT, "AT002", "이미 출석 처리되었습니다"),
   ATTENDANCE_TIME_OVER(HttpStatus.BAD_REQUEST, "AT003", "출석 가능 시간이 아닙니다"),
+  CHECKIN_IN_PROGRESS(HttpStatus.CONFLICT, "AT004", "이미 처리 중인 체크인 요청입니다. 잠시 후 다시 시도해주세요"),
 
   // FCM 토큰
   FCM_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "F001", "FCM 토큰을 찾을 수 없습니다"),
