@@ -34,6 +34,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -65,8 +66,17 @@ public class AttendanceService {
      *      + 태그 사용시각/사용자 첫 출석시각 갱신
      * - 세션 시작 시 사전 생성된 WAITING 레코드가 있으면 그걸 갱신하고, 없으면(그룹 미지정 세션 등) 새로 생성한다.
      * - 이미 PRESENT/LATE/ABSENT로 처리된 레코드가 있으면 중복 출석으로 간주해 예외.
+     *
+     * 격리 수준을 READ_COMMITTED로 낮춘 이유: MySQL InnoDB 기본 격리 수준(REPEATABLE READ)은 트랜잭션
+     * 안에서 "처음 SELECT를 실행하는 시점" 기준으로 스냅샷을 고정한다. 이 메서드는 분산 락을 잡기(4단계)
+     * 한참 전인 1단계(NFC 태그 조회)에서 이미 첫 SELECT를 실행하므로, 동시에 들어온 요청들은 락을 잡기도
+     * 전에 각자의 스냅샷이 고정돼버린다. 그러면 분산 락이 요청들을 순서대로 통과시켜도, 뒤에 락을 넘겨받은
+     * 요청은 앞선 요청이 그 사이 커밋한 내용을 자기 스냅샷에서는 여전히 "없는 것"으로 보게 되어 중복
+     * INSERT를 시도하는 문제가 있었다(실제로 부하 테스트에서 DB Unique 제약 위반으로 재현됨). READ_COMMITTED는
+     * 트랜잭션 시작이 아니라 "각 쿼리를 실행하는 순간"마다 그때 기준 최신 커밋 데이터를 보므로, 락을
+     * 넘겨받은 뒤 실행하는 조회가 직전 트랜잭션의 커밋 결과를 정확히 보게 되어 이 문제가 사라진다.
      */
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public AttendanceResponse checkIn(Long userId, CheckInRequest request) {
         // 1. NFC 태그 조회 및 활성 상태 확인
         NfcTag nfcTag =
