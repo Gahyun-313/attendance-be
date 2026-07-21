@@ -32,6 +32,20 @@
 
 USE attendance;
 
+-- ---------------------------------------------
+-- 0. 이전 실행에서 남은 PERF_DUMMY 데이터 정리 (재실행 안전성 확보)
+-- ---------------------------------------------
+-- 스크립트 중간에 에러가 나서 멈춰도, 그 전에 실행된 INSERT는 이미 커밋된 채로 남는다
+-- (MySQL은 "문장 하나"만 실패 시 롤백하지, 스크립트 전체를 하나의 트랜잭션으로 묶어주지
+-- 않는다). 그 상태에서 재실행하면 이미 있는 perf_student* 계정과 username이 겹쳐
+-- Duplicate entry 에러가 난다. 그래서 매번 스크립트 맨 앞에서 이전 PERF_DUMMY 데이터를
+-- 지우고 시작하게 만들어 몇 번을 재실행해도 항상 같은 결과가 나오게(멱등하게) 한다.
+-- FK가 ON DELETE CASCADE라 sessions/users만 지워도 attendance_records는 연쇄 삭제되지만,
+-- 순서를 명시적으로 지켜 안전하게 지운다 (자식 -> 부모 순서).
+DELETE FROM attendance_records WHERE note = 'PERF_DUMMY';
+DELETE FROM attendance_sessions WHERE note = 'PERF_DUMMY';
+DELETE FROM users WHERE note = 'PERF_DUMMY';
+
 -- 0~9 숫자를 담은 보조 테이블 - 여러 번 CROSS JOIN해서 자릿수 조합으로 시퀀스를 만드는 용도
 -- 주의: TEMPORARY TABLE로 만들면 "같은 쿼리 안에서 같은 임시 테이블을 두 번 이상
 -- 참조할 수 없다"는 MySQL 제약(ERROR 1137 Can't reopen table)에 걸린다. 아래에서
@@ -129,9 +143,9 @@ FROM
 -- EXPLAIN FORMAT=JSON SELECT * FROM attendance_records WHERE user_id = (SELECT id FROM users WHERE username='student1') ORDER BY check_in_time DESC LIMIT 20;
 
 -- ============================================================
--- 정리(clean up) - 재실행하거나 측정 끝난 뒤 되돌릴 때 사용
--- FK가 ON DELETE CASCADE라 sessions/users만 지워도 연쇄 삭제되지만,
--- 순서를 명시적으로 지켜 안전하게 지운다 (자식 -> 부모 순서).
+-- 정리(clean up) - 측정이 완전히 끝나서 더미 데이터를 완전히 되돌리고 싶을 때 사용.
+-- (재실행 시에는 이 블록을 따로 실행할 필요 없음 - 스크립트 맨 앞의 "0. 정리" 단계가
+-- 매번 자동으로 처리해준다)
 -- ============================================================
 -- DELETE FROM attendance_records WHERE note = 'PERF_DUMMY';
 -- DELETE FROM attendance_sessions WHERE note = 'PERF_DUMMY';
