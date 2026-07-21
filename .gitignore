@@ -43,3 +43,6 @@ application-prod.yml
 
 ### k6 ###
 /k6/config.json
+
+### Docker ###
+.env
