@@ -20,19 +20,25 @@
 --   - 로컬 개발 DB 전용 (운영 DB에서 절대 실행 금지)
 --   - 재실행하면 매번 20명/5,000세션/10만 레코드가 "추가로 더" 쌓인다.
 --     다시 채우려면 파일 맨 아래 "정리(clean up)" 블록을 먼저 실행할 것
---   - MySQL 8 기준. cte_max_recursion_depth 기본값(1,000)보다 세션 개수(5,000)가
---     많아서 세션 생성 전에 세션 변수로 한도를 올려준다.
+--   - 숫자 시퀀스는 WITH RECURSIVE 대신 "tally table"(0~9 임시 테이블을 여러 번
+--     CROSS JOIN해서 자릿수 조합으로 큰 수를 만드는) 방식을 사용한다. 재귀 CTE는
+--     MySQL 버전/클라이언트에 따라 파생 테이블(서브쿼리) 안에 중첩했을 때 파싱이
+--     안 되는 경우가 있어, 버전 상관없이 항상 동작하는 이 방식으로 바꿨다.
 -- ============================================================
 
 USE attendance;
 
-SET SESSION cte_max_recursion_depth = 6000;
+-- 0~9 숫자를 담은 임시 테이블 - 여러 번 CROSS JOIN해서 자릿수 조합으로 시퀀스를 만드는 용도
+DROP TEMPORARY TABLE IF EXISTS digits;
+CREATE TEMPORARY TABLE digits (d INT);
+INSERT INTO digits (d) VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
 
 -- ---------------------------------------------
 -- 1. 더미 학생 계정 17명 추가 (기존 student1~3 + 이 17명 = 총 20명)
 -- ---------------------------------------------
 -- 실제로 로그인할 일이 없는 채움용 계정이라 student1과 동일한 해시(평문 student1!)를 재사용.
 -- note='PERF_DUMMY'로 표시해둬야 나중에 정리(clean up)할 때 식별 가능.
+-- digits 2개 조합(0~99)이면 17까지 충분히 커버됨.
 INSERT INTO users
 (username, password, email, name, role, group_name, note,
  password_changed, active, enabled, created_at, updated_at)
@@ -46,19 +52,18 @@ SELECT
     'PERF_DUMMY',
     1, 1, 1, NOW(), NOW()
 FROM (
-         WITH RECURSIVE seq AS (
-             SELECT 1 AS n
-             UNION ALL
-             SELECT n + 1 FROM seq WHERE n < 17
-         )
-         SELECT n FROM seq
-     ) AS user_seq;
+         SELECT (d1.d * 10 + d0.d + 1) AS n
+         FROM digits d0
+                  CROSS JOIN digits d1
+     ) AS user_seq
+WHERE n <= 17;
 
 -- ---------------------------------------------
 -- 2. 더미 세션 5,000개 추가
 -- ---------------------------------------------
--- session_date/start_time을 과거 365일 범위로 흩어서 check_in_time 정렬이
+-- session_date/start_time을 과거 범위로 흩어서 check_in_time 정렬이
 -- 실제로 의미 있게 나오도록 함 (전부 같은 시각이면 filesort 비용 비교가 왜곡됨).
+-- digits 4개 조합(0~9999)이면 5,000까지 커버됨.
 INSERT INTO attendance_sessions
 (title, description, group_name, session_date, start_time, end_time,
  late_threshold_minutes, location, status, nfc_tag_id, note, created_by,
@@ -78,13 +83,15 @@ SELECT
     (SELECT id FROM users WHERE username = 'admin'),
     NOW(), NOW()
 FROM (
-         WITH RECURSIVE seq AS (
-             SELECT 1 AS n
-             UNION ALL
-             SELECT n + 1 FROM seq WHERE n < 5000
-         )
-         SELECT n FROM seq
-     ) AS session_seq;
+         SELECT (d3.d * 1000 + d2.d * 100 + d1.d * 10 + d0.d + 1) AS n
+         FROM digits d0
+                  CROSS JOIN digits d1
+                  CROSS JOIN digits d2
+                  CROSS JOIN digits d3
+     ) AS session_seq
+WHERE n <= 5000;
+
+DROP TEMPORARY TABLE IF EXISTS digits;
 
 -- ---------------------------------------------
 -- 3. attendance_records 10만 건 = 사용자 20명 x 세션 5,000개 (cross join)
