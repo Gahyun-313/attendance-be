@@ -8,7 +8,12 @@ import lombok.*;
 @Entity
 @Table(
     name = "attendance_records",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "session_id"}))
+        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "session_id"}),
+        // AttendanceRepository.findByUserId(userId, pageable)가 checkInTime DESC로 정렬 조회하는데,
+        // user_id 단일 인덱스만으로는 정렬까지 커버 못 해 filesort가 발생한다. (user_id, check_in_time)
+        // 복합 인덱스를 추가해 필터링+정렬을 인덱스 하나로 처리되게 한다 (컬럼 나열 순서가 중요 - user_id가
+        // 앞에 있어야 "특정 유저의 기록을 시간순으로"라는 조회 패턴에 맞는 leftmost prefix가 성립한다).
+        indexes = @Index(name = "idx_attendance_user_checkin", columnList = "user_id, check_in_time"))
 @Getter
 @Setter
 @NoArgsConstructor
