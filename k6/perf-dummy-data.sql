@@ -20,17 +20,24 @@
 --   - 로컬 개발 DB 전용 (운영 DB에서 절대 실행 금지)
 --   - 재실행하면 매번 20명/5,000세션/10만 레코드가 "추가로 더" 쌓인다.
 --     다시 채우려면 파일 맨 아래 "정리(clean up)" 블록을 먼저 실행할 것
---   - 숫자 시퀀스는 WITH RECURSIVE 대신 "tally table"(0~9 임시 테이블을 여러 번
+--   - 숫자 시퀀스는 WITH RECURSIVE 대신 "tally table"(0~9 보조 테이블을 여러 번
 --     CROSS JOIN해서 자릿수 조합으로 큰 수를 만드는) 방식을 사용한다. 재귀 CTE는
 --     MySQL 버전/클라이언트에 따라 파생 테이블(서브쿼리) 안에 중첩했을 때 파싱이
 --     안 되는 경우가 있어, 버전 상관없이 항상 동작하는 이 방식으로 바꿨다.
+--   - digits 보조 테이블은 TEMPORARY가 아니라 일반 테이블이다. TEMPORARY TABLE은
+--     "같은 쿼리 안에서 같은 임시 테이블을 두 번 이상 참조 불가"라는 MySQL 제약이
+--     있어(ERROR 1137 Can't reopen table), digits를 d0~d3로 여러 번 조인하는 이
+--     스크립트와는 맞지 않는다. 스크립트 끝에서 DROP TABLE로 정리한다.
 -- ============================================================
 
 USE attendance;
 
--- 0~9 숫자를 담은 임시 테이블 - 여러 번 CROSS JOIN해서 자릿수 조합으로 시퀀스를 만드는 용도
-DROP TEMPORARY TABLE IF EXISTS digits;
-CREATE TEMPORARY TABLE digits (d INT);
+-- 0~9 숫자를 담은 보조 테이블 - 여러 번 CROSS JOIN해서 자릿수 조합으로 시퀀스를 만드는 용도
+-- 주의: TEMPORARY TABLE로 만들면 "같은 쿼리 안에서 같은 임시 테이블을 두 번 이상
+-- 참조할 수 없다"는 MySQL 제약(ERROR 1137 Can't reopen table)에 걸린다. 아래에서
+-- digits를 d0~d3까지 여러 번 CROSS JOIN하므로, 반드시 일반 테이블로 만들어야 한다.
+DROP TABLE IF EXISTS digits;
+CREATE TABLE digits (d INT);
 INSERT INTO digits (d) VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
 
 -- ---------------------------------------------
@@ -91,7 +98,7 @@ FROM (
      ) AS session_seq
 WHERE n <= 5000;
 
-DROP TEMPORARY TABLE IF EXISTS digits;
+DROP TABLE IF EXISTS digits;
 
 -- ---------------------------------------------
 -- 3. attendance_records 10만 건 = 사용자 20명 x 세션 5,000개 (cross join)
