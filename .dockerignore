@@ -1,0 +1,19 @@
+# 이미지 빌드 컨텍스트에 안 넣어도 되는 것들 - 빌드 속도와 이미지 안전성(비밀값 유출 방지)을 위해 제외
+.git
+.gradle
+build
+out
+*.iml
+.idea
+
+# 학습/성능측정용 부산물 - 애플리케이션 실행에 불필요
+k6/
+docs/
+*.md
+day5-k6-study-note.txt
+day6-redis-docker-study-note.txt
+websocket-test.html
+
+# 실제 비밀값이 든 파일 - 혹시라도 컨텍스트에 남아있으면 이미지에 절대 포함되면 안 됨
+.env
+application-local.yml
