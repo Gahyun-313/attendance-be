@@ -1,0 +1,67 @@
+# 로컬 개발/테스트용 - 앱 + MySQL + Redis를 한 번에 띄운다.
+# 이걸 켜기 전에 로컬에 따로 설치된 MySQL 서비스와, Redis 컨테이너(attendance-redis)는 꺼두는 것을 권장한다
+# (둘 다 각각 3306/6379 포트를 이미 쓰고 있으면, 아래 mysql/redis 서비스가 같은 포트를 못 열고 실패한다.)
+
+# 실행: docker compose up --build
+# 완전히 처음부터 다시 (DB 데이터까지 초기화): docker compose down -v
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: attendance-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-attendance}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3307:3306"
+    volumes:
+      # 컨테이너가 죽었다 다시 떠도 데이터가 안 날아가도록 이름 있는 볼륨에 저장
+      - mysql_data:/var/lib/mysql
+      # MySQL 공식 이미지는 "데이터 디렉토리가 완전히 비어있는 최초 기동" 때만
+      # /docker-entrypoint-initdb.d 안의 스크립트를 자동 실행한다.
+      # - init.sql이 여기 마운트돼 있으면 테이블/초기 계정이 자동으로 만들어진다.
+      # - 한 번 데이터가 쌓인 뒤에는 init.sql을 고쳐도 재실행 안 됨
+      # - 반영하려면 `docker compose down -v`로 볼륨까지 지우고 다시 띄워야 함
+      - ./src/main/resources/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      # "포트가 열렸다"와 "MySQL이 실제로 요청을 받을 준비가 됐다"는 별개의 상황이므로,
+      # 아래 app 서비스가 이 healthcheck를 통과한 뒤에만 뜨도록 depends_on에서 참조한다.
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
+
+  redis:
+    image: redis:7-alpine
+    container_name: attendance-redis-compose
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: attendance-app
+    restart: unless-stopped
+    # application-prod.yml이 요구하는 환경변수를 .env 파일에서 그대로 읽어온다.
+    # DB_HOST/REDIS_HOST는 .env.example에 이미 서비스 이름(mysql/redis)으로 되어 있는데,
+    # docker-compose 네트워크 안에서는 "서비스 이름 = 호스트 이름"으로 서로를 찾을 수 있기 때문이다.
+    # - 컨테이너의 localhost와는 다른 개념
+    env_file:
+      - .env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+volumes:
+  mysql_data:
