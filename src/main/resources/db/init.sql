@@ -129,6 +129,8 @@ CREATE TABLE IF NOT EXISTS attendance_records (
     INDEX idx_attendance_user_id (user_id),
     INDEX idx_attendance_session_id (session_id),
     INDEX idx_attendance_status (status),
+    -- "내 출석 기록" 조회(user_id 필터 + check_in_time 정렬)를 인덱스 하나로 처리하기 위한 복합 인덱스 --
+    INDEX idx_attendance_user_checkin (user_id, check_in_time),
     CONSTRAINT fk_attendance_user
     FOREIGN KEY (user_id) REFERENCES users (id)
     ON DELETE CASCADE,
