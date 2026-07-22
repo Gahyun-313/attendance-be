@@ -39,7 +39,6 @@ out/
 ### Application ###
 application-local.yml
 application-dev.yml
-application-prod.yml
 
 ### k6 ###
 /k6/config.json
