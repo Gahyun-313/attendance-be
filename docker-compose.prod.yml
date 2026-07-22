@@ -1,0 +1,30 @@
+# AWS 배포용 - DB는 RDS를 쓰므로 mysql 서비스 없이 app + redis만 띄운다.
+# DB 서버는 이 인스턴스 안에 컨테이너로 두지 않고, AWS가 관리하는 별도 RDS로 접속한다.
+# .env는 이 파일과 같은 위치에 직접 만들어서 사용한다.
+
+# 실행: docker compose -f docker-compose.prod.yml up --build -d
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: attendance-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: attendance-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
