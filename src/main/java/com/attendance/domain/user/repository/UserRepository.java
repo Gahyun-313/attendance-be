@@ -59,41 +59,60 @@ public interface UserRepository extends JpaRepository<User, Long> {
    * @return 역할과 검색 조건에 맞는 사용자 목록의 페이지 객체
    */
   @Query(
-      "SELECT u FROM User u WHERE u.role = :role AND (u.username LIKE %:keyword% OR u.name LIKE %:keyword%)")
+          "SELECT u FROM User u WHERE u.role = :role AND (u.username LIKE %:keyword% OR u.name LIKE %:keyword%)")
   Page<User> searchByRoleAndKeyword(
-      @Param("role") UserRole role, @Param("keyword") String keyword, Pageable pageable);
+          @Param("role") UserRole role, @Param("keyword") String keyword, Pageable pageable);
 
   /**
-   * 학생 목록 조회 (그룹/이름·학번 검색, 페이징) - GET /api/users (ADMIN)에서 사용 - groupName, keyword는 선택값이며 null이면 해당
-   * 조건 미적용 - ADMIN 계정은 DB에서 직접 관리하므로 role=STUDENT로 고정 조회
+   * 학생 목록 조회 (그룹/이름·학번 검색, 페이징) - GET /api/users (ADMIN)에서 사용 - groupName, keyword는 선택값이며
+   * null이면 해당 조건 미적용 - ADMIN 계정은 DB에서 직접 관리하므로 role=STUDENT로 고정 조회
+   * - organizationId는 요청한 관리자의 단체로 고정 (다른 단체 학생이 섞여 나오지 않도록 항상 조건에 포함)
    *
    * @param role 조회할 사용자 역할 (STUDENT 고정)
+   * @param organizationId 조회를 요청한 관리자가 속한 단체 ID
    * @param groupName 그룹명 필터 (선택, null이면 전체)
    * @param keyword username/name 검색 키워드 (선택, null이면 전체)
    * @param pageable 페이징 및 정렬 정보
    * @return 조건에 맞는 사용자 목록의 페이지 객체
    */
   @Query(
-      "SELECT u FROM User u WHERE u.role = :role "
-          + "AND (:groupName IS NULL OR u.groupName = :groupName) "
-          + "AND (:keyword IS NULL OR u.username LIKE %:keyword% OR u.name LIKE %:keyword%)")
+          "SELECT u FROM User u WHERE u.role = :role AND u.organizationId = :organizationId "
+                  + "AND (:groupName IS NULL OR u.groupName = :groupName) "
+                  + "AND (:keyword IS NULL OR u.username LIKE %:keyword% OR u.name LIKE %:keyword%)")
   Page<User> searchStudents(
-      @Param("role") UserRole role,
-      @Param("groupName") String groupName,
-      @Param("keyword") String keyword,
-      Pageable pageable);
+          @Param("role") UserRole role,
+          @Param("organizationId") Long organizationId,
+          @Param("groupName") String groupName,
+          @Param("keyword") String keyword,
+          Pageable pageable);
 
   /**
-   * 존재하는 그룹명 목록 조회 (distinct) - GET /api/users/groups (ADMIN)에서 사용 - 어드민 웹에서 세션 생성 시 그룹 선택 드롭다운 등에
-   * 활용 - null 그룹명은 제외, 그룹명 오름차순 정렬
+   * 존재하는 그룹명 목록 조회 (distinct) - GET /api/users/groups (ADMIN)에서 사용 - 어드민 웹에서 세션 생성 시 그룹 선택
+   * 드롭다운 등에 활용 - null 그룹명은 제외, 그룹명 오름차순 정렬
    *
    * @param role 조회할 사용자 역할 (STUDENT 고정)
    * @return 중복 제거된 그룹명 목록
    */
   @Query(
-      "SELECT DISTINCT u.groupName FROM User u "
-          + "WHERE u.role = :role AND u.groupName IS NOT NULL ORDER BY u.groupName")
+          "SELECT DISTINCT u.groupName FROM User u "
+                  + "WHERE u.role = :role AND u.groupName IS NOT NULL ORDER BY u.groupName")
   List<String> findDistinctGroupNames(@Param("role") UserRole role);
+
+  /**
+   * 존재하는 그룹명 목록 조회 (단체 범위 한정) - GET /api/users/groups (ADMIN)에서 사용
+   * - 위 findDistinctGroupNames(role)의 단체 격리 버전. StatisticsService는 아직 단체 필터링 적용 전이라
+   *   기존 메서드를 그대로 두고, 이 메서드는 새로 추가한 오버로드다 (Day 7 프론트 화면 작업과 함께 점진 적용 예정).
+   *
+   * @param role 조회할 사용자 역할 (STUDENT 고정)
+   * @param organizationId 조회를 요청한 관리자가 속한 단체 ID
+   * @return 중복 제거된 그룹명 목록
+   */
+  @Query(
+          "SELECT DISTINCT u.groupName FROM User u "
+                  + "WHERE u.role = :role AND u.organizationId = :organizationId AND u.groupName IS NOT NULL "
+                  + "ORDER BY u.groupName")
+  List<String> findDistinctGroupNames(
+          @Param("role") UserRole role, @Param("organizationId") Long organizationId);
 
   /**
    * 특정 역할 + 그룹명에 속한 사용자 전체 조회 (페이징 없음) - 세션 시작 시 대상 그룹 학생 전원에게 WAITING 레코드를 사전 생성할 때 사용
