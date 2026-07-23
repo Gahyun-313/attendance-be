@@ -44,16 +44,20 @@ public class CreateUserRequest {
   @Size(max = 500, message = "비고는 500자를 초과할 수 없습니다")
   private String note;
 
-  /** Request DTO를 User 엔티티로 변환 - role은 항상 STUDENT 고정 */
-  public User toEntity(String encodedPassword) {
+  /** Request DTO를 User 엔티티로 변환 - role은 항상 STUDENT 고정
+   * @param organizationId 생성한 관리자가 속한 단체 ID
+   * - 클라이언트가 임의로 다른 단체를 지정할 수 없도록 요청 필드가 아닌 파라미터로 받는다
+   */
+  public User toEntity(String encodedPassword, Long organizationId) {
     return User.builder()
-        .username(username)
-        .password(encodedPassword)
-        .email(email)
-        .name(name)
-        .groupName(groupName)
-        .note(note)
-        .role(UserRole.STUDENT) // 관리자가 생성하는 계정은 항상 학생
-        .build();
+            .username(username)
+            .password(encodedPassword)
+            .email(email)
+            .name(name)
+            .groupName(groupName)
+            .note(note)
+            .role(UserRole.STUDENT) // 관리자가 생성하는 계정은 항상 학생
+            .organizationId(organizationId)
+            .build();
   }
 }
