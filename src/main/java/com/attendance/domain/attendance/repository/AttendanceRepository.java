@@ -7,6 +7,8 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /** 출석 기록 Repository */
 public interface AttendanceRepository extends JpaRepository<AttendanceRecord, Long> {
@@ -49,6 +51,18 @@ public interface AttendanceRepository extends JpaRepository<AttendanceRecord, Lo
 
   /** 전체 상태별 레코드 수 - 전체 통계(overall)의 누적 출석/지각/결석/대기 건수 집계용 */
   long countByStatus(AttendanceStatus status);
+
+  /**
+   * 단체별 + 상태별 레코드 수 - 전체 통계(overall)를 단체 범위로 한정할 때 사용 (위 countByStatus의 단체 격리 버전)
+   * - AttendanceRecord는 organizationId 컬럼을 직접 갖고 있지 않아(세션을 통해 간접적으로만 소속이 결정됨),
+   *   sessionId가 해당 단체 소속 세션 ID 목록에 포함되는지로 서브쿼리를 걸어 판단한다.
+   */
+  @Query(
+          "SELECT COUNT(a) FROM AttendanceRecord a "
+                  + "WHERE a.status = :status "
+                  + "AND a.sessionId IN (SELECT s.id FROM AttendanceSession s WHERE s.organizationId = :organizationId)")
+  long countByStatusAndOrganizationId(
+          @Param("status") AttendanceStatus status, @Param("organizationId") Long organizationId);
 
   /** 사용자별 전체 출석 레코드 수 - 사용자 통계(user/me)의 총 참여 건수 집계용 */
   long countByUserId(Long userId);
