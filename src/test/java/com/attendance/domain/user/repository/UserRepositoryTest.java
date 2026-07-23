@@ -15,46 +15,51 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
 /**
- * UserRepository 쿼리 메서드 테스트 @DataJpaTest는 JPA 관련 빈만 로드하고 인메모리 H2 DB로 실제 쿼리를 실행한다.
+ * UserRepository 쿼리 메서드 테스트
+ *
+ * @DataJpaTest는 JPA 관련 빈만 로드하고 인메모리 H2 DB로 실제 쿼리를 실행한다.
  * 커스텀 @Query(searchStudents, findDistinctGroupNames)가 의도한 대로 동작하는지 검증한다.
  *
- * <p>검증하는 주요 정책: - 그룹명/키워드로 학생 목록을 정확히 필터링 (searchStudents) - 그룹/키워드 조건이 없으면 STUDENT 전체 조회, ADMIN은
- * 항상 제외 - 그룹명은 중복 없이, null은 제외하고 조회 (findDistinctGroupNames) - 역할+그룹 기준 인원수를 정확히 카운트
- * (countByRoleAndGroupName)
+ * 검증하는 주요 정책:
+ * - 그룹명/키워드로 학생 목록을 정확히 필터링 (searchStudents)
+ * - 그룹/키워드 조건이 없으면 STUDENT 전체 조회, ADMIN은 항상 제외
+ * - 그룹명은 중복 없이, null은 제외하고 조회 (findDistinctGroupNames)
+ * - 역할+그룹 기준 인원수를 정확히 카운트 (countByRoleAndGroupName)
  */
 @DataJpaTest
 class UserRepositoryTest {
 
   /**
-   * @Autowired 실제 DB 대신 인메모리 H2로 자동 구성된 UserRepository 빈을 주입받는다. @Autowired TestEntityManager로 영속성
-   * 컨텍스트를 직접 다루어 테스트 데이터를 세팅/flush한다.
+   * @Autowired 실제 DB 대신 인메모리 H2로 자동 구성된 UserRepository 빈을 주입받는다.
+   * @Autowired TestEntityManager로 영속성 컨텍스트를 직접 다루어 테스트 데이터를 세팅/flush한다.
    */
   @Autowired private UserRepository userRepository;
-
   @Autowired private TestEntityManager em;
 
   private User saveStudent(String username, String name, String groupName) {
     // 테스트용 학생 계정 생성 (username/password/name/role은 NOT NULL)
     User user =
-        User.builder()
-            .username(username)
-            .password("encoded-password")
-            .name(name)
-            .groupName(groupName)
-            .role(UserRole.STUDENT)
-            .build();
+            User.builder()
+                    .username(username)
+                    .password("encoded-password")
+                    .name(name)
+                    .groupName(groupName)
+                    .role(UserRole.STUDENT)
+                    .organizationId(1L)
+                    .build();
     return em.persistAndFlush(user);
   }
 
   private User saveAdmin(String username) {
     // 그룹 필터링에서 STUDENT만 나와야 함을 검증하기 위한 대조군 admin 계정
     User admin =
-        User.builder()
-            .username(username)
-            .password("encoded-password")
-            .name("관리자")
-            .role(UserRole.ADMIN)
-            .build();
+            User.builder()
+                    .username(username)
+                    .password("encoded-password")
+                    .name("관리자")
+                    .role(UserRole.ADMIN)
+                    .organizationId(1L)
+                    .build();
     return em.persistAndFlush(admin);
   }
 
@@ -73,11 +78,13 @@ class UserRepositoryTest {
 
       // when
       Page<User> result =
-          userRepository.searchStudents(UserRole.STUDENT, "A반", null, PageRequest.of(0, 10));
+              userRepository.searchStudents(UserRole.STUDENT, 1L, "A반", null, PageRequest.of(0, 10));
 
       // then
       assertThat(result.getContent()).hasSize(2);
-      assertThat(result.getContent()).extracting(User::getGroupName).containsOnly("A반");
+      assertThat(result.getContent())
+              .extracting(User::getGroupName)
+              .containsOnly("A반");
     }
 
     @Test
@@ -91,7 +98,7 @@ class UserRepositoryTest {
 
       // when
       Page<User> result =
-          userRepository.searchStudents(UserRole.STUDENT, null, "길동", PageRequest.of(0, 10));
+              userRepository.searchStudents(UserRole.STUDENT, 1L, null, "길동", PageRequest.of(0, 10));
 
       // then
       assertThat(result.getContent()).hasSize(1);
@@ -108,7 +115,7 @@ class UserRepositoryTest {
 
       // when
       Page<User> result =
-          userRepository.searchStudents(UserRole.STUDENT, null, null, PageRequest.of(0, 10));
+              userRepository.searchStudents(UserRole.STUDENT, 1L, null, null, PageRequest.of(0, 10));
 
       // then
       assertThat(result.getContent()).hasSize(2);
