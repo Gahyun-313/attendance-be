@@ -48,9 +48,17 @@ public class User implements UserDetails {
   @Column(nullable = false, length = 20)
   private UserRole role;
 
-  // 소속 (학과, 동아리 등)
-  @Column(length = 100)
-  private String organization;
+  // 소속 단체 (Organization FK) - 연관관계 대신 Long으로 저장 (AttendanceRecord.userId와 동일 패턴)
+  @Column(name = "organization_id", nullable = false)
+  private Long organizationId;
+
+  // 소셜 로그인 제공자 (GOOGLE/KAKAO 등) - 비밀번호 로그인 계정은 null
+  @Column(length = 20)
+  private String provider;
+
+  // 소셜 로그인 제공자가 부여한 사용자 식별자 - 비밀번호 로그인 계정은 null
+  @Column(name = "provider_id", length = 100)
+  private String providerId;
 
   // 학번 (학생 전용, username과 동일 값 가능)
   @Column(name = "student_id", length = 20)
