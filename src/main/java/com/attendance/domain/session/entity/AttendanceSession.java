@@ -24,6 +24,10 @@ public class AttendanceSession {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
+  // 소속 단체 (Organization FK) - User.organizationId와 동일 패턴, 연관관계 대신 Long으로 저장
+  @Column(name = "organization_id", nullable = false)
+  private Long organizationId;
+
   @Column(nullable = false, length = 200)
   private String title;
 
@@ -101,9 +105,9 @@ public class AttendanceSession {
     this.description = request.getDescription();
     this.groupName = request.getGroupName();
     this.sessionDate =
-        request.getSessionDate() != null
-            ? request.getSessionDate()
-            : request.getStartTime().toLocalDate();
+            request.getSessionDate() != null
+                    ? request.getSessionDate()
+                    : request.getStartTime().toLocalDate();
     this.startTime = request.getStartTime();
     this.endTime = request.getEndTime();
     if (request.getLateThresholdMinutes() != null) {
