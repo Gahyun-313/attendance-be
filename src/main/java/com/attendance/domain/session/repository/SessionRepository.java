@@ -101,4 +101,26 @@ public interface SessionRepository extends JpaRepository<AttendanceSession, Long
    * (Pageable로 개수 제한, sessionDate/startTime DESC 정렬은 호출부에서 Pageable로 전달)
    */
   List<AttendanceSession> findByStatusOrderBySessionDateDesc(SessionStatus status, Pageable pageable);
+
+  // ------------------------------------------------
+  // 단체(organizationId) 격리 버전 - StatisticsService 전용 (위 메서드들은 다른 곳에서 안 쓰지만
+  // 회귀 위험을 줄이려고 그대로 남겨두고, 통계 API 경로만 아래 organizationId 포함 버전으로 옮긴다)
+  // ------------------------------------------------
+
+  /** 단체 내 전체 세션 수 - 전체 통계(overall)의 총 세션 수 집계용 (위 count()의 단체 격리 버전) */
+  long countByOrganizationId(Long organizationId);
+
+  /** 단체 내 상태별 세션 수 - 전체 통계(overall)/대시보드 통계 집계용 */
+  long countByOrganizationIdAndStatus(Long organizationId, SessionStatus status);
+
+  /** 단체 내 날짜별 세션 수 - 대시보드 통계(오늘 세션 수) 집계용 */
+  long countByOrganizationIdAndSessionDate(Long organizationId, LocalDate sessionDate);
+
+  /** 단체 내 그룹별 + 상태별 세션 목록 조회 - 대시보드 통계의 그룹별 출석률 집계용 */
+  List<AttendanceSession> findByOrganizationIdAndGroupNameAndStatus(
+          Long organizationId, String groupName, SessionStatus status);
+
+  /** 단체 내 최근 완료된 세션 N건 조회 - 대시보드 통계의 "최근 출석률 트렌드" 집계용 */
+  List<AttendanceSession> findByOrganizationIdAndStatusOrderBySessionDateDesc(
+          Long organizationId, SessionStatus status, Pageable pageable);
 }
