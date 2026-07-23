@@ -105,9 +105,9 @@ public class AttendanceSession {
     this.description = request.getDescription();
     this.groupName = request.getGroupName();
     this.sessionDate =
-            request.getSessionDate() != null
-                    ? request.getSessionDate()
-                    : request.getStartTime().toLocalDate();
+        request.getSessionDate() != null
+            ? request.getSessionDate()
+            : request.getStartTime().toLocalDate();
     this.startTime = request.getStartTime();
     this.endTime = request.getEndTime();
     if (request.getLateThresholdMinutes() != null) {

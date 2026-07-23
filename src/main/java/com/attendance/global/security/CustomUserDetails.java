@@ -24,8 +24,8 @@ public class CustomUserDetails implements UserDetails {
   @Override
   public Collection<? extends GrantedAuthority> getAuthorities() {
     return Collections.singletonList(
-            // User 엔티티의 role에 "ROLE_" 접두사를 붙여 Spring Security의 권한 형식으로 반환
-            new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+        // User 엔티티의 role에 "ROLE_" 접두사를 붙여 Spring Security의 권한 형식으로 반환
+        new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
   }
 
   /** 사용자의 암호화된 비밀번호를 반환 */
@@ -78,10 +78,11 @@ public class CustomUserDetails implements UserDetails {
     return user.getRole().name();
   }
 
-  /** 사용자가 소속된 단체 ID를 반환 - UserDetails에는 없는 커스텀 메서드
-   * - 매 요청마다 CustomUserDetailsService가 User를 DB에서 다시 조회해 담기 때문에,
-   *   JWT 클레임에 organizationId를 따로 넣지 않아도 항상 최신 값을 얻을 수 있다.
-   * - 학생/관리자 생성 시 organizationId를 채워야 하는 곳(UserController/SessionController)에서 사용 */
+  /**
+   * 사용자가 소속된 단체 ID를 반환 - UserDetails에는 없는 커스텀 메서드 - 매 요청마다 CustomUserDetailsService가 User를 DB에서 다시
+   * 조회해 담기 때문에, JWT 클레임에 organizationId를 따로 넣지 않아도 항상 최신 값을 얻을 수 있다. - 학생/관리자 생성 시 organizationId를
+   * 채워야 하는 곳(UserController/SessionController)에서 사용
+   */
   public Long getOrganizationId() {
     return user.getOrganizationId();
   }
