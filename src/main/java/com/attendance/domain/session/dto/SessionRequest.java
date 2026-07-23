@@ -51,27 +51,28 @@ public class SessionRequest {
   @Size(max = 500, message = "비고는 500자를 초과할 수 없습니다")
   private String note;
 
-  /**
-   * Request DTO를 엔티티로 변환
-   *
+  /** Request DTO를 엔티티로 변환
    * @param createdBy 세션 생성자 userId
    * @param nfcTag 연결할 NfcTag 엔티티 (null 가능)
+   * @param organizationId 생성한 관리자가 속한 단체 ID
+   * - 클라이언트가 임의로 다른 단체를 지정할 수 없도록 요청 필드가 아닌 파라미터로 받는다
    */
-  public AttendanceSession toEntity(Long createdBy, NfcTag nfcTag) {
+  public AttendanceSession toEntity(Long createdBy, NfcTag nfcTag, Long organizationId) {
     return AttendanceSession.builder()
-        .title(title)
-        .description(description)
-        .groupName(groupName)
-        // sessionDate가 null이면 startTime의 날짜로 자동 세팅
-        .sessionDate(sessionDate != null ? sessionDate : startTime.toLocalDate())
-        .startTime(startTime)
-        .endTime(endTime)
-        .lateThresholdMinutes(lateThresholdMinutes != null ? lateThresholdMinutes : 10)
-        .location(location)
-        .status(SessionStatus.SCHEDULED) // 생성 시 기본값 SCHEDULED
-        .nfcTag(nfcTag)
-        .note(note)
-        .createdBy(createdBy)
-        .build();
+            .organizationId(organizationId)
+            .title(title)
+            .description(description)
+            .groupName(groupName)
+            // sessionDate가 null이면 startTime의 날짜로 자동 세팅
+            .sessionDate(sessionDate != null ? sessionDate : startTime.toLocalDate())
+            .startTime(startTime)
+            .endTime(endTime)
+            .lateThresholdMinutes(lateThresholdMinutes != null ? lateThresholdMinutes : 10)
+            .location(location)
+            .status(SessionStatus.SCHEDULED) // 생성 시 기본값 SCHEDULED
+            .nfcTag(nfcTag)
+            .note(note)
+            .createdBy(createdBy)
+            .build();
   }
 }

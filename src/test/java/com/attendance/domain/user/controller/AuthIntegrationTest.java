@@ -24,10 +24,17 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 로그인/인증 통합 테스트 @SpringBootTest로 전체 Spring 컨텍스트(Security 필터 체인, GlobalExceptionHandler 포함)를 실제로
- * 띄우고, MockMvc로 진짜 HTTP 요청/응답 사이클을 검증한다. 단위 테스트와 달리 JWT 발급/검증까지 실제로
- * 동작한다. @AutoConfigureTestDatabase(replace = ANY)로 application-local.yml의 실제 MySQL 설정 대신 인메모리 H2를
- * 강제로 사용하도록 한다 (로컬 개발 DB에 영향 없음).
+ * 로그인/인증 통합 테스트
+ *
+ * @SpringBootTest로 전체 Spring 컨텍스트(Security 필터 체인, GlobalExceptionHandler 포함)를 실제로 띄우고,
+ * MockMvc로 진짜 HTTP 요청/응답 사이클을 검증한다. 단위 테스트와 달리 JWT 발급/검증까지 실제로 동작한다.
+ *
+ * @AutoConfigureTestDatabase(replace = ANY)로 application-local.yml의 실제 MySQL 설정 대신
+ * 인메모리 H2를 강제로 사용하도록 한다 (로컬 개발 DB에 영향 없음).
+ *
+ * @Import(RedissonTestConfig.class) - Day6 Phase2: 이 테스트는 로그인만 검증하고 체크인은 안 타지만,
+ * AttendanceService가 컨텍스트에 뜨는 이상 RedissonClient 빈이 필요해서 실제 Redis 없이도 컨텍스트가
+ * 뜨도록 mock으로 대체해둔다 (RedissonTestConfig 참고).
  */
 @Import(RedissonTestConfig.class)
 @SpringBootTest
@@ -44,12 +51,13 @@ class AuthIntegrationTest {
   private User saveUser(String username, String rawPassword, UserRole role) {
     // 로그인 테스트용 사용자 사전 생성 (실제 암호화된 비밀번호로 저장)
     User user =
-        User.builder()
-            .username(username)
-            .password(passwordEncoder.encode(rawPassword))
-            .name("테스트 사용자")
-            .role(role)
-            .build();
+            User.builder()
+                    .username(username)
+                    .password(passwordEncoder.encode(rawPassword))
+                    .name("테스트 사용자")
+                    .role(role)
+                    .organizationId(1L)
+                    .build();
     return userRepository.save(user);
   }
 
@@ -64,19 +72,20 @@ class AuthIntegrationTest {
       // 실제로 존재하는 사용자와 올바른 비밀번호로 로그인을 시도하는 상황
       saveUser("20260001", "password1234", UserRole.STUDENT);
       String requestBody =
-          """
-                    {"username":"20260001","password":"password1234"}
-                    """;
+              """
+              {"username":"20260001","password":"password1234"}
+              """;
 
       // when & then
       // 로그인 성공 시 accessToken/refreshToken이 함께 발급되어야 한다
-      mockMvc
-          .perform(
-              post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(requestBody))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
-          .andExpect(jsonPath("$.data.refreshToken").isNotEmpty())
-          .andExpect(jsonPath("$.data.user.username").value("20260001"));
+      mockMvc.perform(
+                      post("/api/auth/login")
+                              .contentType(MediaType.APPLICATION_JSON)
+                              .content(requestBody))
+              .andExpect(status().isOk())
+              .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+              .andExpect(jsonPath("$.data.refreshToken").isNotEmpty())
+              .andExpect(jsonPath("$.data.user.username").value("20260001"));
     }
 
     @Test
@@ -86,17 +95,18 @@ class AuthIntegrationTest {
       // 사용자는 존재하지만 잘못된 비밀번호로 로그인을 시도하는 상황
       saveUser("20260002", "correct-password", UserRole.STUDENT);
       String requestBody =
-          """
-                    {"username":"20260002","password":"wrong-password"}
-                    """;
+              """
+              {"username":"20260002","password":"wrong-password"}
+              """;
 
       // when & then
       // 비밀번호 불일치 시 401과 함께 INVALID_CREDENTIALS(A005) 코드가 반환되어야 한다
-      mockMvc
-          .perform(
-              post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(requestBody))
-          .andExpect(status().isUnauthorized())
-          .andExpect(jsonPath("$.code").value("A005"));
+      mockMvc.perform(
+                      post("/api/auth/login")
+                              .contentType(MediaType.APPLICATION_JSON)
+                              .content(requestBody))
+              .andExpect(status().isUnauthorized())
+              .andExpect(jsonPath("$.code").value("A005"));
     }
 
     @Test
@@ -105,17 +115,18 @@ class AuthIntegrationTest {
       // given
       // 아예 존재하지 않는 username으로 로그인을 시도하는 상황
       String requestBody =
-          """
-                    {"username":"no-such-user","password":"password1234"}
-                    """;
+              """
+              {"username":"no-such-user","password":"password1234"}
+              """;
 
       // when & then
       // 존재하지 않는 사용자를 조회한 것과 같은 A005로 응답해야 함 (사용자 존재 여부를 노출하지 않기 위함)
-      mockMvc
-          .perform(
-              post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(requestBody))
-          .andExpect(status().isUnauthorized())
-          .andExpect(jsonPath("$.code").value("A005"));
+      mockMvc.perform(
+                      post("/api/auth/login")
+                              .contentType(MediaType.APPLICATION_JSON)
+                              .content(requestBody))
+              .andExpect(status().isUnauthorized())
+              .andExpect(jsonPath("$.code").value("A005"));
     }
 
     @Test
@@ -127,17 +138,18 @@ class AuthIntegrationTest {
       user.deactivate();
       userRepository.save(user);
       String requestBody =
-          """
-                    {"username":"20260003","password":"password1234"}
-                    """;
+              """
+              {"username":"20260003","password":"password1234"}
+              """;
 
       // when & then
       // 비활성 사용자는 U004(INACTIVE_USER)로 로그인이 차단되어야 한다
-      mockMvc
-          .perform(
-              post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(requestBody))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.code").value("U004"));
+      mockMvc.perform(
+                      post("/api/auth/login")
+                              .contentType(MediaType.APPLICATION_JSON)
+                              .content(requestBody))
+              .andExpect(status().isBadRequest())
+              .andExpect(jsonPath("$.code").value("U004"));
     }
 
     @Test
@@ -149,23 +161,25 @@ class AuthIntegrationTest {
       // 먼저 반영되어 uk_refresh_tokens_user_id 제약 위반으로 500이 나던 실제 버그를 재현한다.
       saveUser("20260004", "password1234", UserRole.STUDENT);
       String requestBody =
-          """
-                    {"username":"20260004","password":"password1234"}
-                    """;
+              """
+              {"username":"20260004","password":"password1234"}
+              """;
 
       // when
       // 동일 계정으로 두 번 연속 로그인 - 두 번째 호출이 이 버그의 재현 지점
-      mockMvc
-          .perform(
-              post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(requestBody))
-          .andExpect(status().isOk());
+      mockMvc.perform(
+                      post("/api/auth/login")
+                              .contentType(MediaType.APPLICATION_JSON)
+                              .content(requestBody))
+              .andExpect(status().isOk());
 
-      mockMvc
-          .perform(
-              post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(requestBody))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
-          .andExpect(jsonPath("$.data.refreshToken").isNotEmpty());
+      mockMvc.perform(
+                      post("/api/auth/login")
+                              .contentType(MediaType.APPLICATION_JSON)
+                              .content(requestBody))
+              .andExpect(status().isOk())
+              .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+              .andExpect(jsonPath("$.data.refreshToken").isNotEmpty());
 
       // then
       // 두 번 로그인해도 해당 사용자의 refresh token은 (교체되어) 정확히 1건만 남아있어야 한다

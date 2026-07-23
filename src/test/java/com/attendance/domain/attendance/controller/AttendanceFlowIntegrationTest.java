@@ -36,18 +36,24 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 세션 시작 → 체크인 → 대시보드로 이어지는 핵심 출석 흐름 통합 테스트 @SpringBootTest로 컨트롤러 → 서비스 → 리포지토리 → DB까지 전체 계층을 실제로
- * 연결해 검증한다. Phase 1-B에서 겪었던 "동일 태그 중복 ACTIVE 세션" 버그, WAITING 사전생성/체크인 갱신 로직이 실제 HTTP 흐름에서도 정확히 맞물려
- * 동작하는지 확인하는 최종 회귀 테스트 성격이다. @AutoConfigureTestDatabase(replace = ANY)로 인메모리 H2를 사용한다.
+ * 세션 시작 → 체크인 → 대시보드로 이어지는 핵심 출석 흐름 통합 테스트
+ *
+ * @SpringBootTest로 컨트롤러 → 서비스 → 리포지토리 → DB까지 전체 계층을 실제로 연결해 검증한다.
+ * Phase 1-B에서 겪었던 "동일 태그 중복 ACTIVE 세션" 버그, WAITING 사전생성/체크인 갱신 로직이
+ * 실제 HTTP 흐름에서도 정확히 맞물려 동작하는지 확인하는 최종 회귀 테스트 성격이다.
+ *
+ * @AutoConfigureTestDatabase(replace = ANY)로 인메모리 H2를 사용한다.
  *
  * <p>[Day6 Phase1 추가] 이 테스트는 대시보드 조회(GET .../dashboard)를 두 번 호출하는데, 실제 프로필(local)이
- * spring.cache.type: redis를 쓰기 때문에 그대로 두면 이 테스트가 로컬 Redis 서버가 떠 있어야만 통과하는 테스트가 돼버린다 - DB 흐름을 검증하는 게
- * 목적이지 캐싱 자체를 검증하는 게 아니므로, spring.cache.type을 none으로 덮어써서 이 테스트만큼은 캐시 없이(매번 새로 계산해서) 동작하게 만들었다.
+ * spring.cache.type: redis를 쓰기 때문에 그대로 두면 이 테스트가 로컬 Redis 서버가 떠 있어야만 통과하는
+ * 테스트가 돼버린다 - DB 흐름을 검증하는 게 목적이지 캐싱 자체를 검증하는 게 아니므로, spring.cache.type을
+ * none으로 덮어써서 이 테스트만큼은 캐시 없이(매번 새로 계산해서) 동작하게 만들었다.
  *
- * <p>[Day6 Phase2 추가] redisson-spring-boot-starter를 추가하면서 checkIn()이 이제 실제 RedissonClient로 분산 락을
- * 시도한다. spring.cache.type과 달리 이건 끄는 프로퍼티가 따로 없어서(Redisson은 클래스패스에 있으면 무조건 자동 설정됨),
- * RedissonTestConfig를 @Import해 실제 Redis 연결 없이도 체크인 흐름을 검증할 수 있게 했다. 다른 @SpringBootTest는 이 mock을 그냥
- * 컨텍스트가 뜨게만 하는 용도로 쓰지만, 여기는 실제로 checkIn()을 호출하므로 아래 @BeforeEach에서 tryLock() 등을 "항상 성공"으로 추가 스텁한다.
+ * <p>[Day6 Phase2 추가] redisson-spring-boot-starter를 추가하면서 checkIn()이 이제 실제 RedissonClient로
+ * 분산 락을 시도한다. spring.cache.type과 달리 이건 끄는 프로퍼티가 따로 없어서(Redisson은 클래스패스에
+ * 있으면 무조건 자동 설정됨), RedissonTestConfig를 @Import해 실제 Redis 연결 없이도 체크인 흐름을 검증할
+ * 수 있게 했다. 다른 @SpringBootTest는 이 mock을 그냥 컨텍스트가 뜨게만 하는 용도로 쓰지만, 여기는
+ * 실제로 checkIn()을 호출하므로 아래 @BeforeEach에서 tryLock() 등을 "항상 성공"으로 추가 스텁한다.
  */
 @Import(RedissonTestConfig.class)
 @SpringBootTest
@@ -68,8 +74,7 @@ class AttendanceFlowIntegrationTest {
 
   private String tokenFor(User user) {
     // 실제 로그인 과정을 거치지 않고, 저장된 사용자 정보로 바로 유효한 토큰을 발급 (테스트 편의)
-    return jwtTokenProvider.createAccessToken(
-        user.getId(), user.getUsername(), user.getRole().name());
+    return jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
   }
 
   @BeforeEach
@@ -81,7 +86,7 @@ class AttendanceFlowIntegrationTest {
     // leaseTime을 명시하지 않는 2-인자 tryLock(waitTime, unit)으로 호출하도록 바뀜(워치독 활성화) - 자세한
     // 이유는 AttendanceService.findOrCreateRecordWithLock() 주석 참고
     Mockito.when(lock.tryLock(ArgumentMatchers.anyLong(), ArgumentMatchers.any(TimeUnit.class)))
-        .thenReturn(true);
+            .thenReturn(true);
     Mockito.when(lock.isHeldByCurrentThread()).thenReturn(true);
   }
 
@@ -91,106 +96,103 @@ class AttendanceFlowIntegrationTest {
     // given
     // ADMIN 1명, A반 학생 2명, 그 그룹을 대상으로 하는 SCHEDULED 세션 하나를 준비한 상황
     User admin =
-        userRepository.save(
-            User.builder()
-                .username("admin01")
-                .password("encoded-password")
-                .name("관리자")
-                .role(UserRole.ADMIN)
-                .build());
+            userRepository.save(
+                    User.builder()
+                            .username("admin01")
+                            .password("encoded-password")
+                            .name("관리자")
+                            .role(UserRole.ADMIN)
+                            .organizationId(1L)
+                            .build());
     User student1 =
-        userRepository.save(
-            User.builder()
-                .username("20260001")
-                .password("encoded-password")
-                .name("학생1")
-                .role(UserRole.STUDENT)
-                .groupName("A반")
-                .build());
+            userRepository.save(
+                    User.builder()
+                            .username("20260001")
+                            .password("encoded-password")
+                            .name("학생1")
+                            .role(UserRole.STUDENT)
+                            .groupName("A반")
+                            .organizationId(1L)
+                            .build());
     // student2는 별도로 참조하지 않고, A반에 체크인 안 한 학생이 존재하는 상황만 만들면 됨
     userRepository.save(
-        User.builder()
-            .username("20260002")
-            .password("encoded-password")
-            .name("학생2")
-            .role(UserRole.STUDENT)
-            .groupName("A반")
-            .build());
+            User.builder()
+                    .username("20260002")
+                    .password("encoded-password")
+                    .name("학생2")
+                    .role(UserRole.STUDENT)
+                    .groupName("A반")
+                    .organizationId(1L)
+                    .build());
     NfcTag tag =
-        nfcTagRepository.save(
-            NfcTag.builder().uid("TAG-001").name("A반 태그").status(NfcTagStatus.ACTIVE).build());
+            nfcTagRepository.save(
+                    NfcTag.builder().uid("TAG-001").name("A반 태그").status(NfcTagStatus.ACTIVE).build());
     AttendanceSession session =
-        sessionRepository.save(
-            AttendanceSession.builder()
-                .title("A반 1교시")
-                .groupName("A반")
-                .sessionDate(LocalDateTime.now().toLocalDate())
-                .startTime(LocalDateTime.now().minusMinutes(1))
-                .endTime(LocalDateTime.now().plusHours(1))
-                .lateThresholdMinutes(10)
-                .status(SessionStatus.SCHEDULED)
-                .nfcTag(tag)
-                .createdBy(admin.getId())
-                .build());
+            sessionRepository.save(
+                    AttendanceSession.builder()
+                            .organizationId(1L)
+                            .title("A반 1교시")
+                            .groupName("A반")
+                            .sessionDate(LocalDateTime.now().toLocalDate())
+                            .startTime(LocalDateTime.now().minusMinutes(1))
+                            .endTime(LocalDateTime.now().plusHours(1))
+                            .lateThresholdMinutes(10)
+                            .status(SessionStatus.SCHEDULED)
+                            .nfcTag(tag)
+                            .createdBy(admin.getId())
+                            .build());
 
     // when & then - 1) 세션 시작 시 그룹 학생 전원에게 WAITING이 사전 생성되어야 함
-    mockMvc
-        .perform(
-            post("/api/sessions/{sessionId}/start", session.getId())
-                .header("Authorization", "Bearer " + tokenFor(admin)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.status").value("ACTIVE"));
+    mockMvc.perform(
+                    post("/api/sessions/{sessionId}/start", session.getId())
+                            .header("Authorization", "Bearer " + tokenFor(admin)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("ACTIVE"));
 
     // when & then - 2) 학생1이 체크인하면 사전 생성된 WAITING이 PRESENT로 갱신되어야 함 (신규 레코드 아님)
-    String checkInBody =
-        """
+    String checkInBody = """
                 {"nfcTagUid":"TAG-001"}
                 """;
-    mockMvc
-        .perform(
-            post("/api/attendances/check-in")
-                .header("Authorization", "Bearer " + tokenFor(student1))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(checkInBody))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.data.status").value("PRESENT"));
+    mockMvc.perform(
+                    post("/api/attendances/check-in")
+                            .header("Authorization", "Bearer " + tokenFor(student1))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(checkInBody))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.data.status").value("PRESENT"));
 
     // when & then - 3) 학생1은 이미 체크인했으므로 재시도하면 중복 출석으로 차단되어야 함
-    mockMvc
-        .perform(
-            post("/api/attendances/check-in")
-                .header("Authorization", "Bearer " + tokenFor(student1))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(checkInBody))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.code").value("AT002"));
+    mockMvc.perform(
+                    post("/api/attendances/check-in")
+                            .header("Authorization", "Bearer " + tokenFor(student1))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(checkInBody))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("AT002"));
 
     // when & then - 4) 학생2는 아직 체크인 전이므로 대시보드에는 targetCount=2, present=1, waiting=1이어야 함
-    mockMvc
-        .perform(
-            get("/api/attendances/sessions/{sessionId}/dashboard", session.getId())
-                .header("Authorization", "Bearer " + tokenFor(admin)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.targetCount").value(2))
-        .andExpect(jsonPath("$.data.present").value(1))
-        .andExpect(jsonPath("$.data.waiting").value(1));
+    mockMvc.perform(
+                    get("/api/attendances/sessions/{sessionId}/dashboard", session.getId())
+                            .header("Authorization", "Bearer " + tokenFor(admin)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.targetCount").value(2))
+            .andExpect(jsonPath("$.data.present").value(1))
+            .andExpect(jsonPath("$.data.waiting").value(1));
 
     // when & then - 5) 세션을 종료하면 학생2의 남은 WAITING이 ABSENT로 자동 전환되어야 함
-    mockMvc
-        .perform(
-            post("/api/sessions/{sessionId}/close", session.getId())
-                .header("Authorization", "Bearer " + tokenFor(admin)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.status").value("COMPLETED"));
+    mockMvc.perform(
+                    post("/api/sessions/{sessionId}/close", session.getId())
+                            .header("Authorization", "Bearer " + tokenFor(admin)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("COMPLETED"));
 
-    mockMvc
-        .perform(
-            get("/api/attendances/sessions/{sessionId}/dashboard", session.getId())
-                .header("Authorization", "Bearer " + tokenFor(admin)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.present").value(1))
-        .andExpect(jsonPath("$.data.absent").value(1))
-        .andExpect(jsonPath("$.data.waiting").value(0));
+    mockMvc.perform(
+                    get("/api/attendances/sessions/{sessionId}/dashboard", session.getId())
+                            .header("Authorization", "Bearer " + tokenFor(admin)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.present").value(1))
+            .andExpect(jsonPath("$.data.absent").value(1))
+            .andExpect(jsonPath("$.data.waiting").value(0));
   }
 
   @Test
@@ -199,45 +201,47 @@ class AttendanceFlowIntegrationTest {
     // given
     // 같은 태그를 쓰는 세션 A가 이미 ACTIVE인 상태에서, 같은 태그의 세션 B를 시작하려는 상황
     User admin =
-        userRepository.save(
-            User.builder()
-                .username("admin02")
-                .password("encoded-password")
-                .name("관리자2")
-                .role(UserRole.ADMIN)
-                .build());
+            userRepository.save(
+                    User.builder()
+                            .username("admin02")
+                            .password("encoded-password")
+                            .name("관리자2")
+                            .role(UserRole.ADMIN)
+                            .organizationId(1L)
+                            .build());
     NfcTag tag =
-        nfcTagRepository.save(
-            NfcTag.builder().uid("TAG-002").name("공용 태그").status(NfcTagStatus.ACTIVE).build());
+            nfcTagRepository.save(
+                    NfcTag.builder().uid("TAG-002").name("공용 태그").status(NfcTagStatus.ACTIVE).build());
     // sessionA는 별도로 참조하지 않고, 같은 태그를 쓰는 다른 ACTIVE 세션이 존재하는 상황만 만들면 됨
     sessionRepository.save(
-        AttendanceSession.builder()
-            .title("세션 A")
-            .startTime(LocalDateTime.now().minusMinutes(1))
-            .endTime(LocalDateTime.now().plusHours(1))
-            .lateThresholdMinutes(10)
-            .status(SessionStatus.ACTIVE)
-            .nfcTag(tag)
-            .createdBy(admin.getId())
-            .build());
-    AttendanceSession sessionB =
-        sessionRepository.save(
             AttendanceSession.builder()
-                .title("세션 B")
-                .startTime(LocalDateTime.now().minusMinutes(1))
-                .endTime(LocalDateTime.now().plusHours(1))
-                .lateThresholdMinutes(10)
-                .status(SessionStatus.SCHEDULED)
-                .nfcTag(tag)
-                .createdBy(admin.getId())
-                .build());
+                    .organizationId(1L)
+                    .title("세션 A")
+                    .startTime(LocalDateTime.now().minusMinutes(1))
+                    .endTime(LocalDateTime.now().plusHours(1))
+                    .lateThresholdMinutes(10)
+                    .status(SessionStatus.ACTIVE)
+                    .nfcTag(tag)
+                    .createdBy(admin.getId())
+                    .build());
+    AttendanceSession sessionB =
+            sessionRepository.save(
+                    AttendanceSession.builder()
+                            .organizationId(1L)
+                            .title("세션 B")
+                            .startTime(LocalDateTime.now().minusMinutes(1))
+                            .endTime(LocalDateTime.now().plusHours(1))
+                            .lateThresholdMinutes(10)
+                            .status(SessionStatus.SCHEDULED)
+                            .nfcTag(tag)
+                            .createdBy(admin.getId())
+                            .build());
 
     // when & then
-    mockMvc
-        .perform(
-            post("/api/sessions/{sessionId}/start", sessionB.getId())
-                .header("Authorization", "Bearer " + tokenFor(admin)))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.code").value("S004"));
+    mockMvc.perform(
+                    post("/api/sessions/{sessionId}/start", sessionB.getId())
+                            .header("Authorization", "Bearer " + tokenFor(admin)))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("S004"));
   }
 }

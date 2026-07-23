@@ -33,22 +33,26 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 /**
  * UserService 단위 테스트
  *
- * <p>Spring Context나 실제 DB를 띄우지 않고, Mockito로 UserRepository/PasswordEncoder를 대체하여 UserService의 비즈니스
- * 로직만 검증한다.
+ * Spring Context나 실제 DB를 띄우지 않고,
+ * Mockito로 UserRepository/PasswordEncoder를 대체하여 UserService의 비즈니스 로직만 검증한다.
  *
- * <p>검증하는 주요 정책: - username/email 중복 시 예외 발생, 이후 로직(암호화/저장) 미실행 - 회원가입 시 비밀번호 암호화 후 저장, 저장되는 필드 정합성
- * - 기본 사용자 권한은 STUDENT - 현재 비밀번호 불일치 시 비밀번호 변경 차단 - 사용자 삭제는 물리 삭제가 아니라 비활성화 처리 - 기존 email과 동일한
- * email 수정 요청 시 중복 체크 생략 - 존재하지 않는 사용자에 대한 요청은 USER_NOT_FOUND로 차단
+ * 검증하는 주요 정책:
+ * - username/email 중복 시 예외 발생, 이후 로직(암호화/저장) 미실행
+ * - 회원가입 시 비밀번호 암호화 후 저장, 저장되는 필드 정합성
+ * - 기본 사용자 권한은 STUDENT
+ * - 현재 비밀번호 불일치 시 비밀번호 변경 차단
+ * - 사용자 삭제는 물리 삭제가 아니라 비활성화 처리
+ * - 기존 email과 동일한 email 수정 요청 시 중복 체크 생략
+ * - 존재하지 않는 사용자에 대한 요청은 USER_NOT_FOUND로 차단
  */
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
   /**
-   * @Mock 실제 DB, PasswordEncoder를 사용하지 않고 Mock으로 대체한다. @InjectMocks 선언한 Mock 객체들이 UserService에 자동으로
-   * 주입된다.
+   * @Mock 실제 DB, PasswordEncoder를 사용하지 않고 Mock으로 대체한다.
+   * @InjectMocks 선언한 Mock 객체들이 UserService에 자동으로 주입된다.
    */
   @Mock private UserRepository userRepository;
-
   @Mock private PasswordEncoder passwordEncoder;
   @InjectMocks private UserService userService;
 
@@ -63,16 +67,15 @@ class UserServiceTest {
     void duplicateUsername_throwsException() {
       // given
       // 이미 존재하는 username으로 회원가입을 요청하는 상황
-      request =
-          new CreateUserRequest("20260001", "password1234", "test@test.com", "홍길동", "A반", null);
+      request = new CreateUserRequest("20260001", "password1234", "test@test.com", "홍길동", "A반", null);
       given(userRepository.existsByUsername("20260001")).willReturn(true);
 
       // when & then
       // username이 중복이면 UserService는 DuplicateException을 던져야 한다
-      assertThatThrownBy(() -> userService.createUser(request))
-          .isInstanceOf(DuplicateException.class)
-          .extracting(e -> ((DuplicateException) e).getErrorCode())
-          .isEqualTo(ErrorCode.DUPLICATE_USERNAME);
+      assertThatThrownBy(() -> userService.createUser(request, 1L))
+              .isInstanceOf(DuplicateException.class)
+              .extracting(e -> ((DuplicateException) e).getErrorCode())
+              .isEqualTo(ErrorCode.DUPLICATE_USERNAME);
 
       // username 중복에서 바로 막히므로 이후 이메일 검증/암호화/저장이 전부 일어나면 안 됨
       verify(userRepository, never()).existsByEmail(any());
@@ -85,17 +88,16 @@ class UserServiceTest {
     void duplicateEmail_throwsException() {
       // given
       // username은 사용 가능하지만 email은 이미 존재하는 상황
-      request =
-          new CreateUserRequest("20260002", "password1234", "dup@test.com", "김철수", "A반", null);
+      request = new CreateUserRequest("20260002", "password1234", "dup@test.com", "김철수", "A반", null);
       given(userRepository.existsByUsername("20260002")).willReturn(false);
       given(userRepository.existsByEmail("dup@test.com")).willReturn(true);
 
       // when & then
       // email이 중복이면 DUPLICATE_EMAIL 예외가 발생해야 한다
-      assertThatThrownBy(() -> userService.createUser(request))
-          .isInstanceOf(DuplicateException.class)
-          .extracting(e -> ((DuplicateException) e).getErrorCode())
-          .isEqualTo(ErrorCode.DUPLICATE_EMAIL);
+      assertThatThrownBy(() -> userService.createUser(request, 1L))
+              .isInstanceOf(DuplicateException.class)
+              .extracting(e -> ((DuplicateException) e).getErrorCode())
+              .isEqualTo(ErrorCode.DUPLICATE_EMAIL);
 
       // email 중복에서 막히므로 암호화나 저장이 일어나면 안 됨
       verify(passwordEncoder, never()).encode(any());
@@ -113,18 +115,18 @@ class UserServiceTest {
 
       // save() 이후 반환될 저장 완료 User
       User savedUser =
-          User.builder()
-              .id(1L)
-              .username("20260003")
-              .password("encoded-password")
-              .name("이영희")
-              .groupName("B반")
-              .role(UserRole.STUDENT)
-              .build();
+              User.builder()
+                      .id(1L)
+                      .username("20260003")
+                      .password("encoded-password")
+                      .name("이영희")
+                      .groupName("B반")
+                      .role(UserRole.STUDENT)
+                      .build();
       given(userRepository.save(any(User.class))).willReturn(savedUser);
 
       // when
-      UserResponse response = userService.createUser(request);
+      UserResponse response = userService.createUser(request, 1L);
 
       // then
       // email이 null이면 중복 체크 자체를 하지 않아야 함
@@ -154,17 +156,16 @@ class UserServiceTest {
       // given
       // 사용자는 존재하지만 입력한 현재 비밀번호가 저장된 비밀번호와 일치하지 않는 상황
       User user = User.builder().id(1L).password("encoded-old-password").build();
-      ChangePasswordRequest request =
-          new ChangePasswordRequest("wrong-password", "new-password123");
+      ChangePasswordRequest request = new ChangePasswordRequest("wrong-password", "new-password123");
       given(userRepository.findById(1L)).willReturn(Optional.of(user));
       given(passwordEncoder.matches("wrong-password", "encoded-old-password")).willReturn(false);
 
       // when & then
       // 현재 비밀번호가 틀리면 PASSWORD_MISMATCH 예외가 발생해야 한다
       assertThatThrownBy(() -> userService.changePassword(1L, request))
-          .isInstanceOf(BusinessException.class)
-          .extracting(e -> ((BusinessException) e).getErrorCode())
-          .isEqualTo(ErrorCode.PASSWORD_MISMATCH);
+              .isInstanceOf(BusinessException.class)
+              .extracting(e -> ((BusinessException) e).getErrorCode())
+              .isEqualTo(ErrorCode.PASSWORD_MISMATCH);
 
       // 현재 비밀번호 검증까지는 호출되지만, 불일치 시 새 비밀번호 암호화는 일어나면 안 됨
       verify(passwordEncoder, times(1)).matches("wrong-password", "encoded-old-password");
@@ -182,9 +183,9 @@ class UserServiceTest {
       // when & then
       // 사용자를 찾을 수 없으면 USER_NOT_FOUND 예외가 발생해야 한다
       assertThatThrownBy(() -> userService.changePassword(999L, request))
-          .isInstanceOf(EntityNotFoundException.class)
-          .extracting(e -> ((EntityNotFoundException) e).getErrorCode())
-          .isEqualTo(ErrorCode.USER_NOT_FOUND);
+              .isInstanceOf(EntityNotFoundException.class)
+              .extracting(e -> ((EntityNotFoundException) e).getErrorCode())
+              .isEqualTo(ErrorCode.USER_NOT_FOUND);
 
       // 사용자를 못 찾았으므로 비밀번호 검증/암호화 자체가 일어나면 안 됨
       verify(passwordEncoder, never()).matches(any(), any());
@@ -249,9 +250,9 @@ class UserServiceTest {
       // when & then
       // 사용자를 찾을 수 없으면 USER_NOT_FOUND 예외가 발생해야 한다
       assertThatThrownBy(() -> userService.deleteUser(999L))
-          .isInstanceOf(EntityNotFoundException.class)
-          .extracting(e -> ((EntityNotFoundException) e).getErrorCode())
-          .isEqualTo(ErrorCode.USER_NOT_FOUND);
+              .isInstanceOf(EntityNotFoundException.class)
+              .extracting(e -> ((EntityNotFoundException) e).getErrorCode())
+              .isEqualTo(ErrorCode.USER_NOT_FOUND);
 
       // 사용자가 없으므로 delete/deleteById/save 어느 것도 호출되면 안 됨
       verify(userRepository, never()).delete(any());
@@ -277,9 +278,9 @@ class UserServiceTest {
       // when & then
       // 다른 사용자의 email과 중복되면 DUPLICATE_EMAIL 예외가 발생해야 한다
       assertThatThrownBy(() -> userService.updateUser(1L, request))
-          .isInstanceOf(DuplicateException.class)
-          .extracting(e -> ((DuplicateException) e).getErrorCode())
-          .isEqualTo(ErrorCode.DUPLICATE_EMAIL);
+              .isInstanceOf(DuplicateException.class)
+              .extracting(e -> ((DuplicateException) e).getErrorCode())
+              .isEqualTo(ErrorCode.DUPLICATE_EMAIL);
     }
 
     @Test
@@ -287,8 +288,7 @@ class UserServiceTest {
     void sameEmailAsBefore_skipsDuplicateCheck() {
       // given
       // email은 기존과 동일하게 유지하고 name만 변경하는 상황
-      User user =
-          User.builder().id(1L).email("same@test.com").name("old").role(UserRole.STUDENT).build();
+      User user = User.builder().id(1L).email("same@test.com").name("old").role(UserRole.STUDENT).build();
       UserUpdateRequest request = new UserUpdateRequest("same@test.com", "new-name", null, null);
       given(userRepository.findById(1L)).willReturn(Optional.of(user));
 
@@ -307,13 +307,13 @@ class UserServiceTest {
       // given
       // email은 수정하지 않고 이름과 그룹만 변경하는 상황
       User user =
-          User.builder()
-              .id(1L)
-              .email("old@test.com")
-              .name("old-name")
-              .groupName("old-group")
-              .role(UserRole.STUDENT)
-              .build();
+              User.builder()
+                      .id(1L)
+                      .email("old@test.com")
+                      .name("old-name")
+                      .groupName("old-group")
+                      .role(UserRole.STUDENT)
+                      .build();
       UserUpdateRequest request = new UserUpdateRequest(null, "new-name", "new-group", null);
       given(userRepository.findById(1L)).willReturn(Optional.of(user));
 
@@ -340,9 +340,9 @@ class UserServiceTest {
       // when & then
       // 사용자를 찾을 수 없으면 USER_NOT_FOUND 예외가 발생해야 한다
       assertThatThrownBy(() -> userService.updateUser(999L, request))
-          .isInstanceOf(EntityNotFoundException.class)
-          .extracting(e -> ((EntityNotFoundException) e).getErrorCode())
-          .isEqualTo(ErrorCode.USER_NOT_FOUND);
+              .isInstanceOf(EntityNotFoundException.class)
+              .extracting(e -> ((EntityNotFoundException) e).getErrorCode())
+              .isEqualTo(ErrorCode.USER_NOT_FOUND);
 
       // 사용자가 없으므로 email 중복 체크가 일어나면 안 됨
       verify(userRepository, never()).existsByEmail(any());
