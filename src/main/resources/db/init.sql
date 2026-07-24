@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS organizations (
 CREATE TABLE IF NOT EXISTS users (
                                      id                  BIGINT          NOT NULL AUTO_INCREMENT,
                                      username            VARCHAR(50)     NOT NULL,
-                                     password            VARCHAR(255)    NOT NULL,
+                                     password            VARCHAR(255),
                                      email               VARCHAR(100),               -- 선택 필드 (ADMIN은 소셜 로그인, STUDENT는 관리자가 생성)
                                      name                VARCHAR(100)    NOT NULL,
                                      phone               VARCHAR(20),
