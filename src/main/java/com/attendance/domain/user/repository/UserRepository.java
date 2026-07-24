@@ -13,7 +13,7 @@ import org.springframework.data.repository.query.Param;
 /**
  * User Repository : User 엔티티에 대한 데이터 접근 계층
  *
- * <p>- 사용자 정보의 조회, 검색, 중복 확인 등의 데이터베이스 작업을 처리 - Spring Data JPA를 사용하여 기본적인 CRUD 작업과 커스텀 쿼리를 제공
+ * 사용자 정보의 조회, 검색, 중복 확인 등의 데이터베이스 작업을 처리 - Spring Data JPA를 사용하여 기본적인 CRUD 작업과 커스텀 쿼리를 제공
  */
 public interface UserRepository extends JpaRepository<User, Long> {
 
