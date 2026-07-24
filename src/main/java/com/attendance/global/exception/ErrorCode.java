@@ -52,7 +52,15 @@ public enum ErrorCode {
 
   // 알림
   NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NT001", "알림을 찾을 수 없습니다"),
-  NOTIFICATION_ALREADY_PROCESSED(HttpStatus.BAD_REQUEST, "NT002", "이미 처리된 알림은 취소할 수 없습니다");
+  NOTIFICATION_ALREADY_PROCESSED(HttpStatus.BAD_REQUEST, "NT002", "이미 처리된 알림은 취소할 수 없습니다"),
+
+  // 소셜 로그인 / 단체 조인 (신규 어드민 조인 - 소셜 로그인 또는 이메일 인증 두 경로)
+  INVALID_ORGANIZATION_CODE(HttpStatus.BAD_REQUEST, "O001", "유효하지 않은 단체 코드입니다"),
+  ORGANIZATION_CODE_REQUIRED(HttpStatus.BAD_REQUEST, "O002", "신규 가입 시 단체 코드가 필요합니다"),
+  UNSUPPORTED_OAUTH_PROVIDER(HttpStatus.BAD_REQUEST, "O003", "지원하지 않는 소셜 로그인 제공자입니다"),
+  OAUTH_VERIFICATION_FAILED(HttpStatus.UNAUTHORIZED, "O004", "소셜 로그인 인증에 실패했습니다"),
+  EMAIL_VERIFICATION_EXPIRED(HttpStatus.BAD_REQUEST, "O005", "인증 코드가 만료되었거나 요청되지 않았습니다"),
+  EMAIL_VERIFICATION_INVALID(HttpStatus.BAD_REQUEST, "O006", "인증 코드가 일치하지 않습니다");
 
   private final HttpStatus status;
   private final String code;
