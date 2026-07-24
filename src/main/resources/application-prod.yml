@@ -27,6 +27,16 @@ spring:
     type: redis
 
   mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 # JWT_SECRET은 기본값을 주지 않는다 - 값이 없으면 앱이 기동 자체를 실패하게 해서,
 # "비밀키를 안 채운 채로 배포"되는 사고를 막기 위한 의도적인 설계.
