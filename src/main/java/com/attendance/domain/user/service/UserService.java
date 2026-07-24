@@ -11,8 +11,8 @@ import com.attendance.global.exception.BusinessException;
 import com.attendance.global.exception.DuplicateException;
 import com.attendance.global.exception.EntityNotFoundException;
 import com.attendance.global.exception.ErrorCode;
-import lombok.RequiredArgsConstructor;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -50,24 +50,25 @@ public class UserService {
   }
 
   /**
-   * 학생 목록 조회 (ADMIN 전용) GET /api/users - groupName, keyword는 선택 필터 (둘 다 null이면 전체 학생 조회) -
-   * ADMIN 계정은 DB에서 직접 관리하므로 STUDENT만 대상으로 조회
-   * - organizationId는 요청한 관리자의 단체로 고정 (다른 단체 학생 노출 방지)
+   * 학생 목록 조회 (ADMIN 전용) GET /api/users - groupName, keyword는 선택 필터 (둘 다 null이면 전체 학생 조회) - ADMIN
+   * 계정은 DB에서 직접 관리하므로 STUDENT만 대상으로 조회 - organizationId는 요청한 관리자의 단체로 고정 (다른 단체 학생 노출 방지)
    */
   public Page<UserResponse> getUsers(
-          String groupName, String keyword, Long organizationId, Pageable pageable) {
+      String groupName, String keyword, Long organizationId, Pageable pageable) {
     return userRepository
-            .searchStudents(UserRole.STUDENT, organizationId, groupName, keyword, pageable)
-            .map(UserResponse::from);
+        .searchStudents(UserRole.STUDENT, organizationId, groupName, keyword, pageable)
+        .map(UserResponse::from);
   }
 
   /**
-   * 사용자 상세 조회 (ADMIN 전용) GET /api/users/{userId}
-   * - 요청한 관리자와 다른 단체 소속이면 존재 자체를 노출하지 않기 위해 조회 실패(404)로 처리
+   * 사용자 상세 조회 (ADMIN 전용) GET /api/users/{userId} - 요청한 관리자와 다른 단체 소속이면 존재 자체를 노출하지 않기 위해 조회
+   * 실패(404)로 처리
    */
   public UserResponse getUser(Long userId, Long organizationId) {
     User user =
-            userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
     if (!user.getOrganizationId().equals(organizationId)) {
       throw new EntityNotFoundException(ErrorCode.USER_NOT_FOUND);
     }
@@ -75,8 +76,8 @@ public class UserService {
   }
 
   /**
-   * 존재하는 그룹명 목록 조회 (ADMIN 전용) GET /api/users/groups - 어드민 웹에서 세션 생성 시 그룹 선택 드롭다운 등에 활용
-   * - organizationId는 요청한 관리자의 단체로 고정
+   * 존재하는 그룹명 목록 조회 (ADMIN 전용) GET /api/users/groups - 어드민 웹에서 세션 생성 시 그룹 선택 드롭다운 등에 활용 -
+   * organizationId는 요청한 관리자의 단체로 고정
    */
   public List<String> getGroups(Long organizationId) {
     return userRepository.findDistinctGroupNames(UserRole.STUDENT, organizationId);
@@ -85,26 +86,31 @@ public class UserService {
   /** 내 정보 조회 (본인 전용) GET /api/users/me */
   public UserResponse getMyInfo(Long userId) {
     User user =
-            userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
     return UserResponse.from(user);
   }
 
   /**
-   * 사용자 정보 수정 (ADMIN 전용) PUT /api/users/{userId} - email 변경 시 중복 검사 수행 - username, password,
-   * role은 수정 대상 아님
+   * 사용자 정보 수정 (ADMIN 전용) PUT /api/users/{userId} - email 변경 시 중복 검사 수행 - username, password, role은
+   * 수정 대상 아님
    */
   @Transactional
   public UserResponse updateUser(Long userId, UserUpdateRequest request) {
     User user =
-            userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
 
     if (request.getEmail() != null
-            && !request.getEmail().equals(user.getEmail())
-            && userRepository.existsByEmail(request.getEmail())) {
+        && !request.getEmail().equals(user.getEmail())
+        && userRepository.existsByEmail(request.getEmail())) {
       throw new DuplicateException(ErrorCode.DUPLICATE_EMAIL);
     }
 
-    user.updateInfo(request.getName(), request.getEmail(), request.getGroupName(), request.getNote());
+    user.updateInfo(
+        request.getName(), request.getEmail(), request.getGroupName(), request.getNote());
     return UserResponse.from(user);
   }
 
@@ -115,7 +121,9 @@ public class UserService {
   @Transactional
   public void deleteUser(Long userId) {
     User user =
-            userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
     user.deactivate();
   }
 
@@ -126,7 +134,9 @@ public class UserService {
   @Transactional
   public void changePassword(Long userId, ChangePasswordRequest request) {
     User user =
-            userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
 
     if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
       throw new BusinessException(ErrorCode.PASSWORD_MISMATCH);
