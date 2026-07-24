@@ -23,6 +23,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
   /** email로 사용자 조회 */
   Optional<User> findByEmail(String email);
 
+  /** 소셜 로그인 제공자 + 제공자 사용자 ID로 조회 - 이미 연결된 소셜 계정인지 확인할 때 사용 */
+  Optional<User> findByProviderAndProviderId(String provider, String providerId);
+
   /** username 존재 여부 확인 */
   boolean existsByUsername(String username);
 
@@ -128,6 +131,17 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
   /** 역할별 전체 사용자 수 - 전체 통계(overall)의 전체 학생 수 집계용 */
   long countByRole(UserRole role);
+
+  /** 역할별 + 단체별 전체 사용자 수 - 통계 API(overall)를 단체 범위로 한정할 때 사용 (위 countByRole의 단체 격리 버전) */
+  long countByRoleAndOrganizationId(UserRole role, Long organizationId);
+
+  /**
+   * 역할+그룹명+단체별 사용자 수 - StatisticsService의 그룹별 출석률 집계(calculateGroupAttendanceRates)를 단체 범위로 한정할 때
+   * 사용 (위 countByRoleAndGroupName의 단체 격리 버전 - AttendanceService.getSessionDashboard도 기존 메서드를 그대로 쓰고
+   * 있어 시그니처를 안 바꾸고 오버로드로 추가함)
+   */
+  long countByRoleAndGroupNameAndOrganizationId(
+      UserRole role, String groupName, Long organizationId);
 
   /**
    * 특정 역할에 속한 사용자 전체 조회 (페이징 없음) - 알림 전체발송(targetGroup 미지정) 시 대상자 조회에 사용

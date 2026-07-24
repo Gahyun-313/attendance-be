@@ -29,16 +29,20 @@ public class StatisticsController {
   /** 전체 통계 GET /api/statistics/overall - ADMIN 전용 시스템 전체 누적 수치 (학생 수, 세션 수, 상태별 출석 건수, 전체 출석률) */
   @PreAuthorize("hasRole('ADMIN')")
   @GetMapping("/overall")
-  public ResponseEntity<ApiResponse<OverallStatisticsResponse>> getOverallStatistics() {
-    OverallStatisticsResponse response = statisticsService.getOverallStatistics();
+  public ResponseEntity<ApiResponse<OverallStatisticsResponse>> getOverallStatistics(
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    OverallStatisticsResponse response =
+        statisticsService.getOverallStatistics(userDetails.getOrganizationId());
     return ResponseEntity.ok(ApiResponse.success(response, "전체 통계 조회 성공"));
   }
 
   /** 대시보드 통계 GET /api/statistics/dashboard - ADMIN 전용 오늘/최근/그룹별 관점의 요약 및 트렌드 */
   @PreAuthorize("hasRole('ADMIN')")
   @GetMapping("/dashboard")
-  public ResponseEntity<ApiResponse<DashboardStatisticsResponse>> getDashboardStatistics() {
-    DashboardStatisticsResponse response = statisticsService.getDashboardStatistics();
+  public ResponseEntity<ApiResponse<DashboardStatisticsResponse>> getDashboardStatistics(
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    DashboardStatisticsResponse response =
+        statisticsService.getDashboardStatistics(userDetails.getOrganizationId());
     return ResponseEntity.ok(ApiResponse.success(response, "대시보드 통계 조회 성공"));
   }
 
@@ -46,8 +50,9 @@ public class StatisticsController {
   @PreAuthorize("hasRole('ADMIN')")
   @GetMapping("/users/{userId}")
   public ResponseEntity<ApiResponse<UserStatisticsResponse>> getUserStatistics(
-      @PathVariable Long userId) {
-    UserStatisticsResponse response = statisticsService.getUserStatistics(userId);
+      @PathVariable Long userId, @AuthenticationPrincipal CustomUserDetails userDetails) {
+    UserStatisticsResponse response =
+        statisticsService.getUserStatistics(userId, userDetails.getOrganizationId());
     return ResponseEntity.ok(ApiResponse.success(response, "사용자 통계 조회 성공"));
   }
 
@@ -55,7 +60,9 @@ public class StatisticsController {
   @GetMapping("/me")
   public ResponseEntity<ApiResponse<UserStatisticsResponse>> getMyStatistics(
       @AuthenticationPrincipal CustomUserDetails userDetails) {
-    UserStatisticsResponse response = statisticsService.getUserStatistics(userDetails.getUserId());
+    UserStatisticsResponse response =
+        statisticsService.getUserStatistics(
+            userDetails.getUserId(), userDetails.getOrganizationId());
     return ResponseEntity.ok(ApiResponse.success(response, "내 통계 조회 성공"));
   }
 }
