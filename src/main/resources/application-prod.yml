@@ -26,6 +26,8 @@ spring:
   cache:
     type: redis
 
+  mail:
+
 # JWT_SECRET은 기본값을 주지 않는다 - 값이 없으면 앱이 기동 자체를 실패하게 해서,
 # "비밀키를 안 채운 채로 배포"되는 사고를 막기 위한 의도적인 설계.
 jwt:
@@ -35,6 +37,11 @@ jwt:
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+# 구글 소셜 로그인 - client-id도 기본값 없이 필수 환경변수로 (틀린 값으로 배포되는 것을 방지)
+oauth:
+  google:
+    client-id: ${GOOGLE_OAUTH_CLIENT_ID}
 
 logging:
   level:
