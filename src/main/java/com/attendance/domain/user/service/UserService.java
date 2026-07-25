@@ -65,14 +65,7 @@ public class UserService {
    * 실패(404)로 처리
    */
   public UserResponse getUser(Long userId, Long organizationId) {
-    User user =
-        userRepository
-            .findById(userId)
-            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
-    if (!user.getOrganizationId().equals(organizationId)) {
-      throw new EntityNotFoundException(ErrorCode.USER_NOT_FOUND);
-    }
-    return UserResponse.from(user);
+    return UserResponse.from(findUserByIdAndOrganization(userId, organizationId));
   }
 
   /**
@@ -97,20 +90,16 @@ public class UserService {
    * 수정 대상 아님
    */
   @Transactional
-  public UserResponse updateUser(Long userId, UserUpdateRequest request) {
-    User user =
-        userRepository
-            .findById(userId)
-            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+  public UserResponse updateUser(Long userId, UserUpdateRequest request, Long organizationId) {
+    User user = findUserByIdAndOrganization(userId, organizationId);
 
     if (request.getEmail() != null
-        && !request.getEmail().equals(user.getEmail())
-        && userRepository.existsByEmail(request.getEmail())) {
+            && !request.getEmail().equals(user.getEmail())
+            && userRepository.existsByEmail(request.getEmail())) {
       throw new DuplicateException(ErrorCode.DUPLICATE_EMAIL);
     }
 
-    user.updateInfo(
-        request.getName(), request.getEmail(), request.getGroupName(), request.getNote());
+    user.updateInfo(request.getName(), request.getEmail(), request.getGroupName(), request.getNote());
     return UserResponse.from(user);
   }
 
@@ -119,11 +108,8 @@ public class UserService {
    * 기록(AttendanceRecord) 등 연관 데이터 보존을 위해 실제 삭제는 하지 않음
    */
   @Transactional
-  public void deleteUser(Long userId) {
-    User user =
-        userRepository
-            .findById(userId)
-            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+  public void deleteUser(Long userId, Long organizationId) {
+    User user = findUserByIdAndOrganization(userId, organizationId);
     user.deactivate();
   }
 
@@ -144,5 +130,17 @@ public class UserService {
 
     String encodedPassword = passwordEncoder.encode(request.getNewPassword());
     user.changePassword(encodedPassword);
+  }
+
+  /**
+   * 사용자 조회 + 소속 단체 검증 공통 메서드 - 다른 단체 소속 userId를 조작(수정/삭제)하려는 시도를 존재 자체가 없는 것처럼(404) 차단한다.
+   */
+  private User findUserByIdAndOrganization(Long userId, Long organizationId) {
+    User user =
+            userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+    if (!user.getOrganizationId().equals(organizationId)) {
+      throw new EntityNotFoundException(ErrorCode.USER_NOT_FOUND);
+    }
+    return user;
   }
 }
