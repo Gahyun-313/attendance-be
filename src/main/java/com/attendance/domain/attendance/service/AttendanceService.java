@@ -122,7 +122,8 @@ public class AttendanceService {
     // 6. 실시간 푸시 트리거 - 이 시점은 아직 트랜잭션 커밋 전이라 값을 직접 싣지 않고 PK만 이벤트로 발행한다.
     //    실제 조회/전송은 AttendanceEventListener가 트랜잭션이 커밋된 뒤(AFTER_COMMIT)에 수행한다.
     eventPublisher.publishEvent(
-        new AttendanceCheckedInEvent(session.getId(), attendanceRecord.getId()));
+        new AttendanceCheckedInEvent(
+                session.getId(), attendanceRecord.getId(), session.getOrganizationId()));
 
     return AttendanceResponse.from(attendanceRecord, user);
   }
@@ -238,10 +239,8 @@ public class AttendanceService {
   }
 
   /** 세션별 출석 현황 조회 (ADMIN) */
-  public List<AttendanceResponse> getSessionAttendances(Long sessionId) {
-    if (!sessionRepository.existsById(sessionId)) {
-      throw new EntityNotFoundException(ErrorCode.SESSION_NOT_FOUND);
-    }
+  public List<AttendanceResponse> getSessionAttendances(Long sessionId, Long organizationId) {
+    verifySessionOrganization(sessionId, organizationId, ErrorCode.SESSION_NOT_FOUND);
     List<AttendanceRecord> records = attendanceRepository.findBySessionId(sessionId);
 
     // N+1 방지: 레코드의 userId를 모아 User를 한 번에 조회 후 Map으로 매핑
@@ -258,14 +257,17 @@ public class AttendanceService {
         .toList();
   }
 
-  /** 출석 상태 수동 수정 (ADMIN) - modifiedBy는 인증된 관리자 이름 */
+  /** 출석 상태 수동 수정 (ADMIN) - modifiedBy는 인증된 관리자 이름
+   * - 다른 단체 소속 출석 기록이면 존재 자체를 노출하지 않기 위해 404로 처리
+   */
   @Transactional
   public AttendanceResponse updateStatus(
-      Long attendanceId, AttendanceStatusUpdateRequest request, String modifiedBy) {
+      Long attendanceId, AttendanceStatusUpdateRequest request, String modifiedBy, Long organizationId) {
     AttendanceRecord attendanceRecord =
         attendanceRepository
             .findById(attendanceId)
             .orElseThrow(() -> new EntityNotFoundException(ErrorCode.ATTENDANCE_NOT_FOUND));
+    verifySessionOrganization(attendanceRecord.getSessionId(), organizationId, ErrorCode.ATTENDANCE_NOT_FOUND);
 
     // 도메인 메서드로 상태 변경 (누가/왜 바꿨는지 함께 기록)
     attendanceRecord.modifyStatus(request.getStatus(), modifiedBy, request.getModifyReason());
@@ -278,30 +280,37 @@ public class AttendanceService {
     return AttendanceResponse.from(attendanceRecord, user);
   }
 
-  /** 출석 기록 삭제 (ADMIN) */
+  /** 출석 기록 삭제 (ADMIN)
+   * - 다른 단체 소속 출석 기록이면 존재 자체를 노출하지 않기 위해 404로 처리
+   */
   @Transactional
-  public void deleteAttendance(Long attendanceId) {
-    // existsById 대신 findById로 바꾼 이유: 삭제 전 sessionId를 알아야 그 세션의 대시보드 캐시를 지울 수 있다
+  public void deleteAttendance(Long attendanceId, Long organizationId) {
     AttendanceRecord attendanceRecord =
         attendanceRepository
             .findById(attendanceId)
             .orElseThrow(() -> new EntityNotFoundException(ErrorCode.ATTENDANCE_NOT_FOUND));
+    verifySessionOrganization(attendanceRecord.getSessionId(), organizationId, ErrorCode.ATTENDANCE_NOT_FOUND);
     attendanceRepository.deleteById(attendanceId);
     evictSessionDashboard(attendanceRecord.getSessionId());
   }
 
   /**
-   * 세션별 출석 대시보드 (ADMIN) - 상태별 레코드 수 + 대상자 수(targetCount) 집계 - targetCount: 세션 groupName 기준 STUDENT
-   * 수. 그룹 미지정 세션은 totalRecords로 근사(AttendanceDashboardResponse에서 처리) - Redis에 5초 TTL로
-   * 캐싱(RedisConfig 참고) + checkIn/updateStatus/delete/세션종료 시점에 수동 무효화도 같이 해서, 폴링 중 최대 5초 지연은 감수하되
-   * "직접 조작한 직후"만큼은 바로 반영되게 한다.
+   * 세션별 출석 대시보드 (ADMIN) - 상태별 레코드 수 + 대상자 수(targetCount) 집계
+   * - targetCount: 세션 groupName 기준 STUDENT 수 (그룹 미지정 시 totalRecords로 근사)
+   * - Redis 5초 TTL 캐싱 + 조작 시점(checkIn/updateStatus/delete/세션종료)마다 수동 무효화 병행
+   * - 다른 단체 세션이면 404로 존재 자체를 숨김
    */
-  @Cacheable(cacheNames = RedisConfig.CACHE_SESSION_DASHBOARD)
-  public AttendanceDashboardResponse getSessionDashboard(Long sessionId) {
+  // key="#sessionId" 고정: organizationId까지 기본 키에 포함되면 evictSessionDashboard(sessionId)의
+  // 단일 키 evict가 캐시를 못 찾게 된다. sessionId는 세션당 유일해 이것만으로 충분.
+  @Cacheable(cacheNames = RedisConfig.CACHE_SESSION_DASHBOARD, key = "#sessionId")
+  public AttendanceDashboardResponse getSessionDashboard(Long sessionId, Long organizationId) {
     AttendanceSession session =
-        sessionRepository
-            .findById(sessionId)
-            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.SESSION_NOT_FOUND));
+            sessionRepository
+                    .findById(sessionId)
+                    .orElseThrow(() -> new EntityNotFoundException(ErrorCode.SESSION_NOT_FOUND));
+    if (!session.getOrganizationId().equals(organizationId)) {
+      throw new EntityNotFoundException(ErrorCode.SESSION_NOT_FOUND);
+    }
 
     long total = attendanceRepository.countBySessionId(sessionId);
     long present =
@@ -377,6 +386,18 @@ public class AttendanceService {
     Cache cache = cacheManager.getCache(RedisConfig.CACHE_SESSION_DASHBOARD);
     if (cache != null) {
       cache.evict(sessionId);
+    }
+  }
+
+  /**
+   * 세션 소속 단체 검증 공통 메서드 - sessionId로 세션을 조회해 organizationId가 일치하는지 확인한다.
+   * 불일치/미존재 시 호출부 맥락에 맞는 404 에러코드로 존재 자체를 숨긴다.
+   */
+  private void verifySessionOrganization(Long sessionId, Long organizationId, ErrorCode notFoundCode) {
+    AttendanceSession session =
+            sessionRepository.findById(sessionId).orElseThrow(() -> new EntityNotFoundException(notFoundCode));
+    if (!session.getOrganizationId().equals(organizationId)) {
+      throw new EntityNotFoundException(notFoundCode);
     }
   }
 }
