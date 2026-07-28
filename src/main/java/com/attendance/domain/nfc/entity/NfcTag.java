@@ -13,7 +13,8 @@ import lombok.NoArgsConstructor;
     name = "nfc_tags",
     indexes = {
       @Index(name = "idx_nfc_uid", columnList = "uid"),
-      @Index(name = "idx_nfc_status", columnList = "status")
+      @Index(name = "idx_nfc_status", columnList = "status"),
+      @Index(name = "idx_nfc_tags_organization", columnList = "organization_id")
     })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -22,6 +23,9 @@ public class NfcTag {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
+
+  @Column(name = "organization_id", nullable = false)
+  private Long organizationId;
 
   @Column(nullable = false, unique = true, length = 50)
   private String uid;
@@ -50,7 +54,13 @@ public class NfcTag {
   private LocalDateTime updatedAt;
 
   @Builder
-  public NfcTag(String uid, String name, String description, String location, NfcTagStatus status) {
+  public NfcTag(Long organizationId,
+                String uid,
+                String name,
+                String description,
+                String location,
+                NfcTagStatus status) {
+    this.organizationId = organizationId;
     this.uid = uid;
     this.name = name;
     this.description = description;
