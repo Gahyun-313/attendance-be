@@ -14,9 +14,11 @@ public class AttendanceCheckedInEvent {
 
   private final Long sessionId;
   private final Long attendanceRecordId;
+  private final Long organizerId;
 
-  public AttendanceCheckedInEvent(Long sessionId, Long attendanceRecordId) {
+  public AttendanceCheckedInEvent(Long sessionId, Long attendanceRecordId, Long organizerId) {
     this.sessionId = sessionId;
     this.attendanceRecordId = attendanceRecordId;
+    this.organizerId = organizerId;
   }
 }
