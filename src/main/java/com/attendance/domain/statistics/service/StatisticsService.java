@@ -142,7 +142,7 @@ public class StatisticsService {
         recentSessions.stream()
             .mapToDouble(
                 session ->
-                    attendanceService.getSessionDashboard(session.getId()).getAttendanceRate())
+                    attendanceService.getSessionDashboard(session.getId(), session.getOrganizationId()).getAttendanceRate())
             .average()
             .orElse(0.0);
     return Math.round(average * 10.0) / 10.0;
