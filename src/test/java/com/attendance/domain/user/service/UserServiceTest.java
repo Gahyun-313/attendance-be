@@ -226,11 +226,11 @@ class UserServiceTest {
     void success_deactivatesInsteadOfDeleting() {
       // given
       // 활성 상태의 사용자가 존재하는 상황
-      User user = User.builder().id(1L).active(true).build();
+      User user = User.builder().id(1L).active(true).organizationId(1L).build();
       given(userRepository.findById(1L)).willReturn(Optional.of(user));
 
       // when
-      userService.deleteUser(1L);
+      userService.deleteUser(1L, 1L);
 
       // then
       // 사용자 삭제 정책은 물리 삭제가 아니라 active=false 비활성화 처리
@@ -248,7 +248,7 @@ class UserServiceTest {
 
       // when & then
       // 사용자를 찾을 수 없으면 USER_NOT_FOUND 예외가 발생해야 한다
-      assertThatThrownBy(() -> userService.deleteUser(999L))
+      assertThatThrownBy(() -> userService.deleteUser(999L, 1L))
           .isInstanceOf(EntityNotFoundException.class)
           .extracting(e -> ((EntityNotFoundException) e).getErrorCode())
           .isEqualTo(ErrorCode.USER_NOT_FOUND);
@@ -269,14 +269,15 @@ class UserServiceTest {
     void duplicateEmail_throwsException() {
       // given
       // 기존 email과 다른 email로 변경하려는데, 해당 email이 이미 존재하는 상황
-      User user = User.builder().id(1L).email("old@test.com").role(UserRole.STUDENT).build();
+      User user = User.builder()
+              .id(1L).email("old@test.com").role(UserRole.STUDENT).organizationId(1L).build();
       UserUpdateRequest request = new UserUpdateRequest("new@test.com", "홍길동", "A반", null);
       given(userRepository.findById(1L)).willReturn(Optional.of(user));
       given(userRepository.existsByEmail("new@test.com")).willReturn(true);
 
       // when & then
       // 다른 사용자의 email과 중복되면 DUPLICATE_EMAIL 예외가 발생해야 한다
-      assertThatThrownBy(() -> userService.updateUser(1L, request))
+      assertThatThrownBy(() -> userService.updateUser(1L, request, 1L))
           .isInstanceOf(DuplicateException.class)
           .extracting(e -> ((DuplicateException) e).getErrorCode())
           .isEqualTo(ErrorCode.DUPLICATE_EMAIL);
@@ -288,12 +289,18 @@ class UserServiceTest {
       // given
       // email은 기존과 동일하게 유지하고 name만 변경하는 상황
       User user =
-          User.builder().id(1L).email("same@test.com").name("old").role(UserRole.STUDENT).build();
+          User.builder()
+                  .id(1L)
+                  .email("same@test.com")
+                  .name("old")
+                  .role(UserRole.STUDENT)
+                  .organizationId(1L)
+                  .build();
       UserUpdateRequest request = new UserUpdateRequest("same@test.com", "new-name", null, null);
       given(userRepository.findById(1L)).willReturn(Optional.of(user));
 
       // when
-      userService.updateUser(1L, request);
+      userService.updateUser(1L, request, 1L);
 
       // then
       // 자기 자신의 email이므로 중복 체크를 하지 않고, 이름만 변경되어야 함
@@ -308,17 +315,18 @@ class UserServiceTest {
       // email은 수정하지 않고 이름과 그룹만 변경하는 상황
       User user =
           User.builder()
-              .id(1L)
-              .email("old@test.com")
-              .name("old-name")
-              .groupName("old-group")
-              .role(UserRole.STUDENT)
-              .build();
+                  .id(1L)
+                  .email("old@test.com")
+                  .name("old-name")
+                  .groupName("old-group")
+                  .role(UserRole.STUDENT)
+                  .organizationId(1L)
+                  .build();
       UserUpdateRequest request = new UserUpdateRequest(null, "new-name", "new-group", null);
       given(userRepository.findById(1L)).willReturn(Optional.of(user));
 
       // when
-      userService.updateUser(1L, request);
+      userService.updateUser(1L, request, 1L);
 
       // then
       // email이 null이면 중복 체크를 하지 않아야 함
@@ -339,7 +347,7 @@ class UserServiceTest {
 
       // when & then
       // 사용자를 찾을 수 없으면 USER_NOT_FOUND 예외가 발생해야 한다
-      assertThatThrownBy(() -> userService.updateUser(999L, request))
+      assertThatThrownBy(() -> userService.updateUser(999L, request, 1L))
           .isInstanceOf(EntityNotFoundException.class)
           .extracting(e -> ((EntityNotFoundException) e).getErrorCode())
           .isEqualTo(ErrorCode.USER_NOT_FOUND);
