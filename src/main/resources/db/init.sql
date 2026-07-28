@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 -- =============================================
 CREATE TABLE IF NOT EXISTS nfc_tags (
                                         id           BIGINT          NOT NULL AUTO_INCREMENT,
+                                        organization_id BIGINT NOT NULL,                -- 소속 단체
                                         uid          VARCHAR(50)     NOT NULL,
                                         name         VARCHAR(100)    NOT NULL,
                                         description  VARCHAR(255),
@@ -96,7 +97,10 @@ CREATE TABLE IF NOT EXISTS nfc_tags (
                                         PRIMARY KEY (id),
                                         UNIQUE KEY uk_nfc_tags_uid (uid),
                                         INDEX idx_nfc_uid (uid),
-                                        INDEX idx_nfc_status (status)
+                                        INDEX idx_nfc_status (status),
+                                        INDEX idx_nfc_tags_organization (organization_id),
+                                        CONSTRAINT fk_nfc_tags_organization
+                                            FOREIGN KEY (organization_id) REFERENCES organizations (id)
 );
 
 -- =============================================
@@ -306,8 +310,9 @@ VALUES
 -- 초기 데이터 (테스트용 NFC 태그 1개)
 -- status를 'ACTIVE'로 넣어야 함 - AttendanceService.checkIn()에서 nfcTag.isActive() 체크를 통과해야 체크인 가능
 -- =============================================
-INSERT INTO nfc_tags (id, uid, name, description, location, status, created_at, updated_at)
+INSERT INTO nfc_tags (id, organization_id, uid, name, description, location, status, created_at, updated_at)
 VALUES (
+           1,
            1,
            '00:00:01',
            'nfc_tag1',
