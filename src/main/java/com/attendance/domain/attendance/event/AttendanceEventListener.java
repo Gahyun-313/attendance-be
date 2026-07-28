@@ -33,7 +33,7 @@ public class AttendanceEventListener {
       AttendanceResponse record =
           attendanceService.getAttendanceRecord(event.getAttendanceRecordId());
       AttendanceDashboardResponse dashboard =
-          attendanceService.getSessionDashboard(event.getSessionId());
+          attendanceService.getSessionDashboard(event.getSessionId(), event.getOrganizerId());
 
       AttendanceCheckInPush payload = AttendanceCheckInPush.of(record, dashboard);
       messagingTemplate.convertAndSend("/topic/attendance/" + event.getSessionId(), payload);
