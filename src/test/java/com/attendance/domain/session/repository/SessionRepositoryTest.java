@@ -18,11 +18,12 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.data.domain.PageRequest;
 
 /**
- * SessionRepository 커스텀 쿼리 테스트 @DataJpaTest로 인메모리 H2 DB에 실제 AttendanceSession을 저장하고, 특히
- * findActiveSessionsByNfcTagId()의 시간 범위 조건(startTime <= now <= endTime)과 정렬(startTime DESC)이 정확히
- * 동작하는지 검증한다. (동일 태그에 여러 ACTIVE 세션이 걸려 지각 판정이 틀어졌던 실제 버그의 회귀 테스트 성격)
+ * SessionRepository 커스텀 쿼리 테스트 @DataJpaTest로 인메모리 H2 DB에 실제 AttendanceSession을 저장하고,
+ * 특히 findActiveSessionsByNfcTagId()의 시간 범위 조건(startTime <= now <= endTime)과
+ * 정렬(startTime DESC)이 정확히 동작하는지 검증한다.
+ * (동일 태그에 여러 ACTIVE 세션이 걸려 지각 판정이 틀어졌던 실제 버그의 회귀 테스트 성격)
  *
- * <p>검증하는 주요 정책: - 현재 시각이 세션 시간 범위 안일 때만 활성 세션으로 조회된다 (findActiveSessionsByNfcTagId) - 시작 전/종료 후
+ * 검증하는 주요 정책: - 현재 시각이 세션 시간 범위 안일 때만 활성 세션으로 조회된다 (findActiveSessionsByNfcTagId) - 시작 전/종료 후
  * 세션은 ACTIVE 상태여도 조회되지 않는다 - 동일 태그에 여러 활성 세션이 걸리면 startTime 내림차순으로 정렬된다 (방어 로직 검증) - 태그+상태로 세션을
  * 필터링한다 (findByNfcTagIdAndStatus, 중복 ACTIVE 세션 방지에 사용) - 날짜/상태별 세션 수를 정확히 카운트한다
  * (countBySessionDate, countByStatus) - 그룹+상태로 세션을 필터링한다 (findByGroupNameAndStatus) - 완료된 세션을
@@ -41,7 +42,12 @@ class SessionRepositoryTest {
 
   private NfcTag saveTag(String uid) {
     // 세션-태그 연관관계 테스트를 위한 활성 NFC 태그 생성
-    NfcTag tag = NfcTag.builder().uid(uid).name("테스트 태그").status(NfcTagStatus.ACTIVE).build();
+    NfcTag tag = NfcTag.builder()
+            .organizationId(1L)
+            .uid(uid)
+            .name("테스트 태그")
+            .status(NfcTagStatus.ACTIVE)
+            .build();
     return em.persistAndFlush(tag);
   }
 
