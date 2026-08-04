@@ -56,14 +56,14 @@ public class NfcTagService {
   public Page<NfcTagResponse> getNfcTagsByStatus(
           NfcTagStatus status, Long organizationId, Pageable pageable) {
     return nfcTagRepository
-            .findByStatus(organizationId, status, pageable)
+            .findByOrganizationIdAndStatus(organizationId, status, pageable)
             .map(NfcTagResponse::from);
   }
 
   /** NFC 태그 검색 (이름 또는 위치) */
   public Page<NfcTagResponse> searchNfcTags(String keyword, Long organizationId, Pageable pageable) {
     return nfcTagRepository
-        .findByNameContainingOrLocationContaining(
+        .findByOrganizationIdAndNameContainingOrLocationContaining(
                 organizationId, keyword, keyword, pageable)
         .map(NfcTagResponse::from);
   }
