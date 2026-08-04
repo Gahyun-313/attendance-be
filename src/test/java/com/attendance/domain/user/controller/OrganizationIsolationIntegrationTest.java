@@ -4,9 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.attendance.domain.attendance.repository.AttendanceRepository;
+import com.attendance.domain.nfc.entity.NfcTag;
+import com.attendance.domain.nfc.entity.NfcTagStatus;
+import com.attendance.domain.nfc.repository.NfcTagRepository;
 import com.attendance.domain.session.SessionStatus;
 import com.attendance.domain.session.entity.AttendanceSession;
 import com.attendance.domain.session.repository.SessionRepository;
@@ -24,13 +29,14 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 단체(organizationId) 간 데이터 격리 통합 테스트
  *
- * <p>서로 다른 단체(organizationId=1, 2)에 각각 관리자/학생/세션을 만들어두고, 한쪽 단체의 관리자 토큰으로 조회했을 때 다른
+ * 서로 다른 단체(organizationId=1, 2)에 각각 관리자/학생/세션을 만들어두고, 한쪽 단체의 관리자 토큰으로 조회했을 때 다른
  * 단체의 데이터가 전혀 섞여 나오지 않는지 검증한다. UserService/SessionService의 organizationId 필터링 및 상세 조회
  * 시 소속 불일치를 404로 처리하는 로직(getUser/getSession)에 대한 회귀 테스트 성격이다.
  *
@@ -49,10 +55,13 @@ class OrganizationIsolationIntegrationTest {
   @Autowired private MockMvc mockMvc;
   @Autowired private UserRepository userRepository;
   @Autowired private SessionRepository sessionRepository;
+  @Autowired private AttendanceRepository attendanceRepository;
   @Autowired private JwtTokenProvider jwtTokenProvider;
 
   private static final Long ORG_A = 1L;
   private static final Long ORG_B = 2L;
+    @Autowired
+    private NfcTagRepository nfcTagRepository;
 
   private String tokenFor(User user) {
     // 실제 로그인 과정을 거치지 않고, 저장된 사용자 정보로 바로 유효한 토큰을 발급 (테스트 편의)
@@ -92,6 +101,16 @@ class OrganizationIsolationIntegrationTest {
                     .lateThresholdMinutes(10)
                     .status(SessionStatus.SCHEDULED)
                     .createdBy(createdBy)
+                    .build());
+  }
+
+  private NfcTag saveNfcTag(String uid, Long organizationId){
+    return nfcTagRepository.save(
+            NfcTag.builder()
+                    .organizationId(organizationId)
+                    .uid(uid)
+                    .name("태그-" + uid)
+                    .status(NfcTagStatus.ACTIVE)
                     .build());
   }
 
@@ -242,6 +261,91 @@ class OrganizationIsolationIntegrationTest {
 
       // then - 차단만 되고 응답은 404였는지뿐 아니라, 실제로 삭제 안 됐는지도 확인
       assertThat(sessionRepository.existsById(sessionB.getId())).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("GET /api/nfc-tags")
+  class GetNfcTags {
+
+    @Test
+    @DisplayName("단체 A 관리자로 조회하면 단체 B NFC 태그는 목록에 나오지 않는다")
+    void doesNotLeakOtherOrganizationNfcTags() throws Exception {
+      // given
+      User adminA = saveAdmin("admin-a", ORG_A);
+      saveNfcTag("TAG-A", ORG_A);
+      saveNfcTag("TAG-B", ORG_B);
+
+      // when & then
+      mockMvc.perform(get("/api/nfc-tags").header("Authorization", "Bearer " + tokenFor(adminA)))
+              .andExpect(status().isOk())
+              .andExpect(jsonPath("$.data.content.length()").value(1))
+              .andExpect(jsonPath("$.data.content[0].uid").value("TAG-A"));
+    }
+  }
+
+  @Nested
+  @DisplayName("GET /api/nfc-tags/{tagId}")
+  class GetNfcTag {
+
+    @Test
+    @DisplayName("다른 단체 NFC 태그를 상세 조회하면 404로 처리된다 (존재 여부 노출 방지)")
+    void crossOrganizationDetail_returns404() throws Exception {
+      // given
+      User adminA = saveAdmin("admin-a", ORG_A);
+      NfcTag tagB = saveNfcTag("TAG-B", ORG_B);
+
+      // when & then
+      mockMvc.perform(
+                      get("/api/nfc-tags/{tagId}", tagB.getId())
+                              .header("Authorization", "Bearer " + tokenFor(adminA)))
+              .andExpect(status().isNotFound())
+              .andExpect(jsonPath("$.code").value("N001"));
+    }
+  }
+
+  @Nested
+  @DisplayName("PUT /api/nfc-tags/{tagId}")
+  class UpdateNfcTag {
+
+    @Test
+    @DisplayName("다른 단체 NFC 태그를 수정하려 하면 404로 차단된다")
+    void crossOrganizationUpdate_returns404() throws Exception {
+      // given
+      User adminA = saveAdmin("admin-a", ORG_A);
+      NfcTag tagB = saveNfcTag("TAG-B", ORG_B);
+
+      // when & then
+      mockMvc.perform(
+                      put("/api/nfc-tags/{tagId}", tagB.getId())
+                              .header("Authorization", "Bearer " + tokenFor(adminA))
+                              .contentType(MediaType.APPLICATION_JSON)
+                              .content("{\"name\":\"수정된 이름\"}"))
+              .andExpect(status().isNotFound())
+              .andExpect(jsonPath("$.code").value("N001"));
+    }
+  }
+
+  @Nested
+  @DisplayName("DELETE /api/nfc-tags/{tagId}")
+  class DeleteNfcTag {
+
+    @Test
+    @DisplayName("다른 단체 NFC 태그를 삭제하려 하면 404로 차단되고 실제로 삭제되지 않는다")
+    void crossOrganizationDelete_returns404AndPersists() throws Exception {
+      // given
+      User adminA = saveAdmin("admin-a", ORG_A);
+      NfcTag tagB = saveNfcTag("TAG-B", ORG_B);
+
+      // when
+      mockMvc.perform(
+                      delete("/api/nfc-tags/{tagId}", tagB.getId())
+                              .header("Authorization", "Bearer " + tokenFor(adminA)))
+              .andExpect(status().isNotFound())
+              .andExpect(jsonPath("$.code").value("N001"));
+
+      // then
+      assertThat(nfcTagRepository.existsById(tagB.getId())).isTrue();
     }
   }
 }

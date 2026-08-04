@@ -16,10 +16,14 @@ public interface NfcTagRepository extends JpaRepository<NfcTag, Long> {
   /** UID 존재 여부 확인 - 중복 UID 체크에 사용 */
   boolean existsByUid(String uid);
 
-  /** 상태별 NFC 태그 조회 (페이징) - 관리자 화면에서 활성/비활성 태그 조회에 사용 */
-  Page<NfcTag> findByStatus(NfcTagStatus status, Pageable pageable);
+  /** 단체별 NFC 태그 조회 (페이징) - 관리자 화면 전체 목록 조회에 사용 */
+  Page<NfcTag> findByOrganizationId(Long organizationId, Pageable pageable);
 
-  /** 이름/위치로 NFC 태그 검색 (페이징) - 관리자 화면에서 태그 검색에 사용 */
-  Page<NfcTag> findByNameContainingOrLocationContaining(
-      String name, String location, Pageable pageable);
+  /** 단체 + 상태별 NFC 태그 조회 (페이징) - 관리자 화면에서 활성/비활성 태그 조회에 사용 */
+  Page<NfcTag> findByOrganizationIdAndStatus(
+          Long organizationId, NfcTagStatus status, Pageable pageable);
+
+  /** 단체 + 이름/위치로 NFC 태그 검색 (페이징) - 관리자 화면에서 태그 검색에 사용 */
+  Page<NfcTag> findByOrganizationIdAndNameContainingOrLocationContaining(
+          Long organizationId, String name, String location, Pageable pageable);
 }
