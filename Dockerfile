@@ -7,6 +7,9 @@ FROM gradle:8.10-jdk17 AS build
 WORKDIR /app
 COPY . .
 
+# graldew가 실행 권한 없이 커밋된 경우를 대비 - 새로 클론한 환경에서도 빌드가 항상 되게 한다.
+RUN chmod +x gradlew
+
 # 실행 가능한 jar만 있으면 되므로 bootJar로 범위를 좁힌다.
 RUN ./gradlew bootJar --no-daemon
 
