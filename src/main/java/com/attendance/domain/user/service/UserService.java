@@ -1,18 +1,22 @@
 package com.attendance.domain.user.service;
 
-import com.attendance.domain.user.dto.ChangePasswordRequest;
-import com.attendance.domain.user.dto.CreateUserRequest;
-import com.attendance.domain.user.dto.UserResponse;
-import com.attendance.domain.user.dto.UserUpdateRequest;
+import com.attendance.domain.attendance.entity.AttendanceRecord;
+import com.attendance.domain.attendance.entity.AttendanceStatus;
+import com.attendance.domain.attendance.repository.AttendanceRepository;
+import com.attendance.domain.user.dto.*;
 import com.attendance.domain.user.entity.User;
 import com.attendance.domain.user.entity.UserRole;
 import com.attendance.domain.user.repository.UserRepository;
+import com.attendance.global.config.RedisConfig;
 import com.attendance.global.exception.BusinessException;
 import com.attendance.global.exception.DuplicateException;
 import com.attendance.global.exception.EntityNotFoundException;
 import com.attendance.global.exception.ErrorCode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
   private final UserRepository userRepository;
+  private final AttendanceRepository attendanceRepository;
   private final PasswordEncoder passwordEncoder;
 
   /**
@@ -74,6 +79,33 @@ public class UserService {
    */
   public List<String> getGroups(Long organizationId) {
     return userRepository.findDistinctGroupNames(UserRole.STUDENT, organizationId);
+  }
+
+  /**
+   * 사용자 대시보드 (ADMIN 전용) GET /api/users/dashboard - 사용자 관리 화면 상단 요약 카드
+   * - 전체/활성 사용자 수, 평균 출석률, 이번 달 신규 대상자 수
+   * - StatisticsService의 overall/dashboard와 동일하게 1분 TTL 캐싱 (organizationId가 캐시 키라서 단체별로 분리됨)
+   * - 평균 출석률은 OverallStatisticsResponse와 동일한 공식(전체 집계 방식)을 재사용한다.
+   */
+  @Cacheable(cacheNames = RedisConfig.CACHE_USER_DASHBOARD)
+  public UserDashboardResponse getUserDashboard(Long organizationId) {
+    long totalUsers = userRepository.countByRoleAndOrganizationId(UserRole.STUDENT, organizationId);
+    long activeUsers =
+            userRepository.countByRoleAndOrganizationIdAndActive(UserRole.STUDENT, organizationId, true);
+
+    long present =
+            attendanceRepository.countByStatusAndOrganizationId(AttendanceStatus.PRESENT, organizationId);
+    long late =
+            attendanceRepository.countByStatusAndOrganizationId(AttendanceStatus.LATE, organizationId);
+    long absent =
+            attendanceRepository.countByStatusAndOrganizationId(AttendanceStatus.ABSENT, organizationId);
+
+    LocalDateTime startOfMonth = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+    long newUsersThisMonth =
+            userRepository.countByRoleAndOrganizationIdAndCreatedAtBetween(
+                    UserRole.STUDENT, organizationId, startOfMonth, LocalDateTime.now());
+
+    return UserDashboardResponse.of(totalUsers, activeUsers, present, late, absent, newUsersThisMonth);
   }
 
   /** 내 정보 조회 (본인 전용) GET /api/users/me */
