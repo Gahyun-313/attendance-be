@@ -114,6 +114,17 @@ public class UserService {
   }
 
   /**
+   * 사용자 재활성화 (ADMIN 전용) POST /api/users/{userId}/active
+   * - deleteUser로 비활성화 된 사용자를 다시 활성 상태로 되돌린다.
+   */
+  @Transactional
+  public UserResponse activateUser(Long userID, Long organizationId) {
+    User user = findUserByIdAndOrganization(userID, organizationId);
+    user.activate();
+    return UserResponse.from(user);
+  }
+
+  /**
    * 비밀번호 변경 (본인 전용) PATCH /api/users/me/password - 현재 비밀번호 확인 후 새 비밀번호로 변경 - 변경 성공 시
    * passwordChanged=true로 갱신 (User.changePassword 내부 처리)
    */
