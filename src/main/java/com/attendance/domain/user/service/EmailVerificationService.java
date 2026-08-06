@@ -2,9 +2,11 @@ package com.attendance.domain.user.service;
 
 import com.attendance.domain.organization.entity.Organization;
 import com.attendance.domain.organization.repository.OrganizationRepository;
+import com.attendance.domain.user.entity.User;
 import com.attendance.domain.user.repository.UserRepository;
 import com.attendance.global.exception.BusinessException;
 import com.attendance.global.exception.DuplicateException;
+import com.attendance.global.exception.EntityNotFoundException;
 import com.attendance.global.exception.ErrorCode;
 import java.security.SecureRandom;
 import java.time.Duration;
@@ -30,6 +32,7 @@ import org.springframework.stereotype.Service;
 public class EmailVerificationService {
 
     private static final String KEY_PREFIX = "email-verify:";
+    private static final String RESET_KEY_PREFIX = "password-reset:"; // 조인용 코드와 완전히 분리된 키 공간
     private static final Duration CODE_TTL = Duration.ofMinutes(5);
 
     private final StringRedisTemplate redisTemplate;
@@ -80,6 +83,48 @@ public class EmailVerificationService {
 
         redisTemplate.delete(key); // 재사용 방지(1회용)
         return organizationId;
+    }
+
+    /**
+     * 비밀번호 재설정 인증 코드 발급 + 이메일 발송 (로그아웃 상태 - 비밀번호를 잊은 사용자 대상)
+     * 조인 코드와 달리 organizationId를 값에 담을 필요가 없다 - 검증 후 이메일로 기존 User를 다시 조회하면 되기 때문
+     */
+    public void sendPasswordResetCode(String email) {
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+        if (user.getPassword() == null) {
+            throw new BusinessException(ErrorCode.SOCIAL_ACCOUNT_NO_PASSWORD);
+        }
+
+        String code = generateCode();
+        redisTemplate.opsForValue().set(RESET_KEY_PREFIX + email, code, CODE_TTL);
+        sendResetEmail(email, code);
+        log.info("비밀번호 재설정 인증 코드 발송 완료 - email: {}", email);
+    }
+
+    /**
+     * 비밀번호 재설정 코드 검증 - 성공 시 1회용으로 즉시 삭제 (조인 코드와 별개 키 공간이라 서로 간섭 없음)
+     */
+    public void verifyPasswordResetCodes(String email, String code) {
+        String key = RESET_KEY_PREFIX + email;
+        String stored = redisTemplate.opsForValue().get(key);
+        if (stored == null) {
+            throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_EXPIRED);
+        }
+        if (!stored.equals(code)) {
+            throw new BusinessException(ErrorCode.EMAIL_VERIFICATION_INVALID);
+        }
+        redisTemplate.delete(key);
+    }
+
+    private void sendResetEmail(String to, String code) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(to);
+        message.setSubject("[출석하자] 비밀번호 재설정 인증 코드");
+        message.setText("인증 코드: " + code + "\n5분 이내에 입력해주세요. 본인이 요청하지 않았다면 이 메일을 무시하세요.");
+        mailSender.send(message);
     }
 
     /** 6자리 숫자 인증 코드 생성 - 000000~999999, 앞자리 0도 유지되도록 %06d로 포맷 */

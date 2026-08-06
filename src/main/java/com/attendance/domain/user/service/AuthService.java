@@ -3,11 +3,7 @@ package com.attendance.domain.user.service;
 import java.time.LocalDateTime;
 import com.attendance.domain.organization.entity.Organization;
 import com.attendance.domain.organization.repository.OrganizationRepository;
-import com.attendance.domain.user.dto.AuthResponse;
-import com.attendance.domain.user.dto.EmailJoinVerifyRequest;
-import com.attendance.domain.user.dto.LoginRequest;
-import com.attendance.domain.user.dto.OAuthLoginRequest;
-import com.attendance.domain.user.dto.TokenRefreshRequest;
+import com.attendance.domain.user.dto.*;
 import com.attendance.domain.user.entity.RefreshToken;
 import com.attendance.domain.user.entity.User;
 import com.attendance.domain.user.entity.UserRole;
@@ -118,6 +114,24 @@ public class AuthService {
                             .build());
 
     return issueTokens(user);
+  }
+
+  /**
+   * 비밀번호 재설정 (로그아웃 상태) POST /api/auth/password-reset/verify
+   *
+   * joinByEmail과 달리 계정을 새로 만들지 않고, 이미 존재하는 계정의 비밀번호만 바꾼다.
+   * 재설정 성공 후 자동 로그인은 시키지 않는다. 새 비밀번호로 /api/auth/login을 다시 호출해야 한다.
+   */
+  @Transactional
+  public void resetPassword(PasswordResetVerifyRequest request) {
+    emailVerificationService.verifyPasswordResetCodes(request.getEmail(), request.getCode());
+
+    User user =
+            userRepository
+                    .findByEmail(request.getEmail())
+                    .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+
+    user.changePassword(passwordEncoder.encode(request.getNewPassword()));
   }
 
   // ------------------------------------------------
