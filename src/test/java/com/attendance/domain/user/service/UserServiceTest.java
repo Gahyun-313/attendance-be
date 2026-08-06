@@ -261,6 +261,55 @@ class UserServiceTest {
   }
 
   @Nested
+  @DisplayName("activateUser()")
+  class ActivateUser {
+
+    @Test
+    @DisplayName("비활성화된 사용자를 재활성화하면 active가 true로 바뀐다")
+    void success_activatesUser() {
+      // given
+      // 비활성화된 상태의 사용자가 존재하는 상황
+      User user = User.builder().id(1L).active(false).organizationId(1L).build();
+      given(userRepository.findById(1L)).willReturn(Optional.of(user));
+
+      // when
+      UserResponse response = userService.activateUser(1L, 1L);
+
+      // then
+      assertThat(user.getActive()).isTrue();
+      assertThat(response.getActive()).isTrue();
+    }
+
+    @Test
+    @DisplayName("다른 단체 소속 사용자면 USER_NOT_FOUND 예외가 발생한다")
+    void differentOrganization_throwsException() {
+      // given
+      // 요청한 관리자(organizationId=1)와 다른 단체(organizationId=2) 소속 사용자인 상황
+      User user = User.builder().id(1L).active(false).organizationId(2L).build();
+      given(userRepository.findById(1L)).willReturn(Optional.of(user));
+
+      // when & then
+      assertThatThrownBy(() -> userService.activateUser(1L, 1L))
+              .isInstanceOf(EntityNotFoundException.class)
+              .extracting(e -> ((EntityNotFoundException) e).getErrorCode())
+              .isEqualTo(ErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 사용자면 USER_NOT_FOUND 예외가 발생한다")
+    void userNotFound_throwsException() {
+      // given
+      given(userRepository.findById(999L)).willReturn(Optional.empty());
+
+      // when & then
+      assertThatThrownBy(() -> userService.activateUser(999L, 1L))
+              .isInstanceOf(EntityNotFoundException.class)
+              .extracting(e -> ((EntityNotFoundException) e).getErrorCode())
+              .isEqualTo(ErrorCode.USER_NOT_FOUND);
+    }
+  }
+
+  @Nested
   @DisplayName("updateUser()")
   class UpdateUser {
 
