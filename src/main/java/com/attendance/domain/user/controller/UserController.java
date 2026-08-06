@@ -2,9 +2,9 @@ package com.attendance.domain.user.controller;
 
 import com.attendance.domain.user.dto.ChangePasswordRequest;
 import com.attendance.domain.user.dto.CreateUserRequest;
+import com.attendance.domain.user.dto.UserDashboardResponse;
 import com.attendance.domain.user.dto.UserResponse;
 import com.attendance.domain.user.dto.UserUpdateRequest;
-import com.attendance.domain.user.entity.User;
 import com.attendance.domain.user.service.UserService;
 import com.attendance.global.response.ApiResponse;
 import com.attendance.global.security.CustomUserDetails;
@@ -71,6 +71,19 @@ public class UserController {
           @AuthenticationPrincipal CustomUserDetails userDetails) {
     List<String> response = userService.getGroups(userDetails.getOrganizationId());
     return ResponseEntity.ok(ApiResponse.success(response, "그룹 목록 조회 성공"));
+  }
+
+  /**
+   * 사용자 대시보드 GET /api/users/dashboard - ADMIN 전용
+   * - 사용자 관리 화면 상단 요약 카드 (전체/활성 사용자 수, 평균 출석률, 이번 달 신규 대상자 수)
+   * - 고정 경로 세그먼트라서 GET /api/users/{userId}와 충돌 없음 (/groups와 동일 패턴)
+   */
+  @PreAuthorize("hasRole('ADMIN')")
+  @GetMapping("/dashboard")
+  public ResponseEntity<ApiResponse<UserDashboardResponse>> getUserDashboard(
+          @AuthenticationPrincipal CustomUserDetails userDetails) {
+    UserDashboardResponse response = userService.getUserDashboard(userDetails.getOrganizationId());
+    return ResponseEntity.ok(ApiResponse.success(response, "사용자 대시보드 조회 성공"));
   }
 
   /**
