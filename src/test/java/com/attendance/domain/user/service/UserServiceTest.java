@@ -268,8 +268,9 @@ class UserServiceTest {
     @DisplayName("비활성화된 사용자를 재활성화하면 active가 true로 바뀐다")
     void success_activatesUser() {
       // given
-      // 비활성화된 상태의 사용자가 존재하는 상황
-      User user = User.builder().id(1L).active(false).organizationId(1L).build();
+      // 비활성화된 상태의 사용자가 존재하는 상황 - UserResponse.from()이 role.name()을 호출하므로 role도 채워야 함
+      User user
+              = User.builder().id(1L).active(false).organizationId(1L).role(UserRole.STUDENT).build();
       given(userRepository.findById(1L)).willReturn(Optional.of(user));
 
       // when
