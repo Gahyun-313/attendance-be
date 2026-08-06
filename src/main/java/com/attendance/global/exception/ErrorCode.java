@@ -60,7 +60,8 @@ public enum ErrorCode {
   UNSUPPORTED_OAUTH_PROVIDER(HttpStatus.BAD_REQUEST, "O003", "지원하지 않는 소셜 로그인 제공자입니다"),
   OAUTH_VERIFICATION_FAILED(HttpStatus.UNAUTHORIZED, "O004", "소셜 로그인 인증에 실패했습니다"),
   EMAIL_VERIFICATION_EXPIRED(HttpStatus.BAD_REQUEST, "O005", "인증 코드가 만료되었거나 요청되지 않았습니다"),
-  EMAIL_VERIFICATION_INVALID(HttpStatus.BAD_REQUEST, "O006", "인증 코드가 일치하지 않습니다");
+  EMAIL_VERIFICATION_INVALID(HttpStatus.BAD_REQUEST, "O006", "인증 코드가 일치하지 않습니다"),
+  SOCIAL_ACCOUNT_NO_PASSWORD(HttpStatus.BAD_REQUEST, "O007", "소셜 로그인 전용 계정은 비밀번호 재설정 대상이 아닙니다");
 
   private final HttpStatus status;
   private final String code;
