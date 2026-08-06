@@ -177,6 +177,32 @@ class OrganizationIsolationIntegrationTest {
   }
 
   @Nested
+  @DisplayName("POST /api/users/{userId}/activate")
+  class ActivateUser {
+
+    @Test
+    @DisplayName("다른 단체 사용자를 재활성화하려 하면 404로 차단되고 실제로 변경되지 않는다")
+    void crossOrganizationActivate_returns404AndDoesNotChange() throws Exception {
+      // given
+      // 단체 B에 비활성화된 학생이 있고, 단체 A 관리자가 그 학생을 재활성화하려는 상황
+      User adminA = saveAdmin("admin-a", ORG_A);
+      User studentB = saveStudent("student-b", "B반", ORG_B);
+      studentB.deactivate();
+      userRepository.save(studentB);
+
+      // when & then
+      // 다른 단체 소속이면 존재 자체를 노출하지 않기 위해 404로 처리해야 한다 (GetUser와 동일 정책)
+      mockMvc.perform(
+                      post("/api/users/{userId}/activate", studentB.getId())
+                              .header("Authorization", "Bearer " + tokenFor(adminA)))
+              .andExpect(status().isNotFound())
+              .andExpect(jsonPath("$.code").value("U001"));
+
+      assertThat(userRepository.findById(studentB.getId()).orElseThrow().getActive()).isFalse();
+    }
+  }
+
+  @Nested
   @DisplayName("GET /api/sessions")
   class GetSessions {
 
