@@ -127,7 +127,7 @@ public class UserController {
    * - 비활성화된 사용자를 다시 활성 상태로 되돌림
    */
   @PreAuthorize("hasRole('ADMIN')")
-  @DeleteMapping("/{userId}/activate")
+  @PostMapping("/{userId}/activate")
   public ResponseEntity<ApiResponse<UserResponse>> activateUser(
           @PathVariable Long userId, @AuthenticationPrincipal CustomUserDetails userDetails) {
     UserResponse response = userService.activateUser(userId, userDetails.getOrganizationId());

@@ -1,6 +1,7 @@
 package com.attendance.domain.user.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -161,6 +162,19 @@ class UserControllerIntegrationTest {
                   .content(requestBody))
           .andExpect(status().isConflict())
           .andExpect(jsonPath("$.code").value("U002"));
+    }
+  }
+
+  @Nested
+  @DisplayName("POST /api/users/{userId}/activate")
+  class ActivateUser {
+
+    @Test
+    @DisplayName("ADMIN 토큰이면 비활성화된 사용자가 다시 활성화된다")
+    void asAdmin_activatesDeactivatedUser() throws Exception {
+      // given
+      // 이미 활성화된 학생 계정이 있는 상황
+
     }
   }
 
