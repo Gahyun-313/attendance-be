@@ -5,6 +5,9 @@ import org.redisson.api.RedissonClient;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 
 /**
  * 통합 테스트(@SpringBootTest) 전용 - 실제 Redis 서버 없이도 전체 스프링 컨텍스트가 뜨게 하기 위한 설정
@@ -24,6 +27,13 @@ import org.springframework.context.annotation.Primary;
  * mock을 @Primary로 대신 주입받는다. 그래서 락 관련 코드를 실제로 호출하지 않는 테스트는 이 mock을 아무 스텁 없이 그냥 받기만 해도 컨텍스트가 정상적으로
  * 뜬다. 체크인처럼 분산 락을 실제로 타는 흐름을 검증해야 하는 AttendanceFlowIntegrationTest는 같은 mock을 @Autowired로 받은 뒤
  * 자체 @BeforeEach에서 tryLock() 등을 추가로 스텁해서 사용한다.
+ *
+ * <p>[StringRedisTemplate까지 같이 깨지는 문제] redisson-spring-boot-starter가 클래스패스에 있으면 Spring Boot가
+ * StringRedisTemplate(EmailVerificationService가 인증 코드 저장에 사용)에도 RedissonClient 기반
+ * RedissonConnectionFactory를 자동으로 물린다. 그래서 RedissonClient를 스텁 없는 mock으로 바꿔버리면 분산 락뿐 아니라
+ * "진짜 Redis 값 저장/조회"까지 mock 위에서 동작하게 되어 getConfig() 등에서 NullPointerException이 난다. 아래
+ * redisConnectionFactory() 빈으로 StringRedisTemplate이 쓸 커넥션 팩토리를 로컬 Redis(application-local.yml과 동일한
+ * localhost:6379)로 직접 분리해줘서, 분산 락 관련 코드만 mock을 타고 실제 값 저장/조회는 로컬 Redis를 그대로 쓰게 한다.
  */
 @TestConfiguration
 public class RedissonTestConfig {
@@ -32,5 +42,11 @@ public class RedissonTestConfig {
   @Primary
   public RedissonClient redissonClient() {
     return Mockito.mock(RedissonClient.class);
+  }
+
+  @Bean
+  @Primary
+  public RedisConnectionFactory redisConnectionFactory() {
+    return new LettuceConnectionFactory(new RedisStandaloneConfiguration("localhost", 6379));
   }
 }
