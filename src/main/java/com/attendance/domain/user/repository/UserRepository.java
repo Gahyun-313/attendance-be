@@ -2,6 +2,7 @@ package com.attendance.domain.user.repository;
 
 import com.attendance.domain.user.entity.User;
 import com.attendance.domain.user.entity.UserRole;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -135,8 +136,18 @@ public interface UserRepository extends JpaRepository<User, Long> {
   /** 역할별 + 단체별 전체 사용자 수 - 통계 API(overall)를 단체 범위로 한정할 때 사용 (위 countByRole의 단체 격리 버전) */
   long countByRoleAndOrganizationId(UserRole role, Long organizationId);
 
+  /** 역할 + 단체 + 활성여부별 사용자 수 - 사용자 대시보드(GET /api/users/dashboard)의 활성 사용자 수 집계용 */
+  long countByRoleAndOrganizationIdAndActive(UserRole role, Long organizationId, boolean activate);
+
   /**
-   * 역할+그룹명+단체별 사용자 수 - StatisticsService의 그룹별 출석률 집계(calculateGroupAttendanceRates)를 단체 범위로 한정할 때
+   * 역할+단체별 + 생성일시 구간 내 사용자 수 - 사용자 대시보드의 "이번 달 신규 대상자 수" 집계용
+   * (start~end는 Service에서 이번 달 1일 00:00 ~ 현재 시각으로 계산해 전달)
+   */
+  long countByRoleAndOrganizationIdAndCreatedAtBetween(
+          UserRole role, Long organizationId, LocalDateTime start, LocalDateTime end);
+
+  /**
+   * 역할 + 그룹명 + 단체별 사용자 수 - StatisticsService의 그룹별 출석률 집계(calculateGroupAttendanceRates)를 단체 범위로 한정할 때
    * 사용 (위 countByRoleAndGroupName의 단체 격리 버전 - AttendanceService.getSessionDashboard도 기존 메서드를 그대로 쓰고
    * 있어 시그니처를 안 바꾸고 오버로드로 추가함)
    */
