@@ -24,6 +24,7 @@ public class RedisConfig {
   public static final String CACHE_SESSION_DASHBOARD = "sessionDashboard";
   public static final String CACHE_OVERALL_STATISTICS = "overallStatistics";
   public static final String CACHE_DASHBOARD_STATISTICS = "dashboardStatistics";
+  public static final String CACHE_USER_DASHBOARD = "userDashboard";
 
   @Bean
   public RedisCacheManagerBuilderCustomizer redisCacheManagerBuilderCustomizer() {
@@ -32,11 +33,14 @@ public class RedisConfig {
             // 체크인마다 값이 바뀌어야 하는 실시간 데이터라 TTL을 짧게(5초) 둔다
             .withCacheConfiguration(
                 CACHE_SESSION_DASHBOARD, defaultConfig().entryTtl(Duration.ofSeconds(5)))
-            // 누적 통계는 "지금 이 순간의 스냅샷" 성격이라 오차 허용 범위가 넓어 TTL을 길게(1분) 둬도 된다
+            // 누적 통계는 "지금 이 순간의 스냅샷" 성격이라 오차 허용 범위가 넓어 TTL을 길게(1분) 둔다
             .withCacheConfiguration(
                 CACHE_OVERALL_STATISTICS, defaultConfig().entryTtl(Duration.ofMinutes(1)))
             .withCacheConfiguration(
-                CACHE_DASHBOARD_STATISTICS, defaultConfig().entryTtl(Duration.ofMinutes(1)));
+                CACHE_DASHBOARD_STATISTICS, defaultConfig().entryTtl(Duration.ofMinutes(1)))
+            //사용자 대시보드도 누적 스냅샷 성격이라 동일하게 TTL 1분으로 둔다
+            .withCacheConfiguration(
+                    CACHE_USER_DASHBOARD, defaultConfig().entryTtl(Duration.ofMinutes(1)));
   }
 
   /** 캐시 값 직렬화 방식 공통 설정 */
