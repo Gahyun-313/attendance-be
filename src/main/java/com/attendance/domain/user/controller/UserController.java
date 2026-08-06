@@ -4,6 +4,7 @@ import com.attendance.domain.user.dto.ChangePasswordRequest;
 import com.attendance.domain.user.dto.CreateUserRequest;
 import com.attendance.domain.user.dto.UserResponse;
 import com.attendance.domain.user.dto.UserUpdateRequest;
+import com.attendance.domain.user.entity.User;
 import com.attendance.domain.user.service.UserService;
 import com.attendance.global.response.ApiResponse;
 import com.attendance.global.security.CustomUserDetails;
@@ -106,6 +107,18 @@ public class UserController {
           @PathVariable Long userId, @AuthenticationPrincipal CustomUserDetails userDetails) {
     userService.deleteUser(userId, userDetails.getOrganizationId());
     return ResponseEntity.ok(ApiResponse.success("사용자가 비활성화되었습니다"));
+  }
+
+  /**
+   * 사용자 재활성화 POST /api/users/{userId}/activate - ADMIN 전용
+   * - 비활성화된 사용자를 다시 활성 상태로 되돌림
+   */
+  @PreAuthorize("hasRole('ADMIN')")
+  @DeleteMapping("/{userId}/activate")
+  public ResponseEntity<ApiResponse<UserResponse>> activateUser(
+          @PathVariable Long userId, @AuthenticationPrincipal CustomUserDetails userDetails) {
+    UserResponse response = userService.activateUser(userId, userDetails.getOrganizationId());
+    return ResponseEntity.ok(ApiResponse.success(response, "사용자가 재활성화되었습니다"));
   }
 
   /**
