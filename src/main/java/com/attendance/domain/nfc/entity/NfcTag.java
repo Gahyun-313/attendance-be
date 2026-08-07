@@ -54,12 +54,13 @@ public class NfcTag {
   private LocalDateTime updatedAt;
 
   @Builder
-  public NfcTag(Long organizationId,
-                String uid,
-                String name,
-                String description,
-                String location,
-                NfcTagStatus status) {
+  public NfcTag(
+      Long organizationId,
+      String uid,
+      String name,
+      String description,
+      String location,
+      NfcTagStatus status) {
     this.organizationId = organizationId;
     this.uid = uid;
     this.name = name;

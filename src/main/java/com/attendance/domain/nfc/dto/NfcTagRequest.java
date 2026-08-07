@@ -28,10 +28,7 @@ public class NfcTagRequest {
   @Size(max = 100, message = "위치는 100자를 초과할 수 없습니다")
   private String location;
 
-  /**
-   * Request DTO를 엔티티로 변환
-   * organizationId는 요청 바디로 받지 않고, 등록을 요청한 관리자의 단체로 고정한다.
-   */
+  /** Request DTO를 엔티티로 변환 organizationId는 요청 바디로 받지 않고, 등록을 요청한 관리자의 단체로 고정한다. */
   public NfcTag toEntity(Long organizationId) {
     return NfcTag.builder()
         .organizationId(organizationId)

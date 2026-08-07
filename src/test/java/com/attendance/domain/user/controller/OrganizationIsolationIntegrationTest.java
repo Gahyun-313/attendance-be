@@ -36,14 +36,12 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 단체(organizationId) 간 데이터 격리 통합 테스트
  *
- * 서로 다른 단체(organizationId=1, 2)에 각각 관리자/학생/세션을 만들어두고, 한쪽 단체의 관리자 토큰으로 조회했을 때 다른
- * 단체의 데이터가 전혀 섞여 나오지 않는지 검증한다. UserService/SessionService의 organizationId 필터링 및 상세 조회
- * 시 소속 불일치를 404로 처리하는 로직(getUser/getSession)에 대한 회귀 테스트 성격이다.
- *
- * @SpringBootTest로 실제 Security 필터 체인까지 띄운 상태에서 검증한다.
- * @AutoConfigureTestDatabase(replace = ANY)로 인메모리 H2를 사용한다.
- * @Import(RedissonTestConfig.class) - AttendanceService가 컨텍스트에 뜨는 이상 RedissonClient 빈이
- * 필요해서 실제 Redis 없이도 컨텍스트가 뜨도록 mock으로 대체 (RedissonTestConfig 참고).
+ * <p>서로 다른 단체(organizationId=1, 2)에 각각 관리자/학생/세션을 만들어두고, 한쪽 단체의 관리자 토큰으로 조회했을 때 다른 단체의 데이터가 전혀 섞여
+ * 나오지 않는지 검증한다. UserService/SessionService의 organizationId 필터링 및 상세 조회 시 소속 불일치를 404로 처리하는
+ * 로직(getUser/getSession)에 대한 회귀 테스트 성격이다. @SpringBootTest로 실제 Security 필터 체인까지 띄운 상태에서
+ * 검증한다. @AutoConfigureTestDatabase(replace = ANY)로 인메모리 H2를 사용한다. @Import(RedissonTestConfig.class)
+ * - AttendanceService가 컨텍스트에 뜨는 이상 RedissonClient 빈이 필요해서 실제 Redis 없이도 컨텍스트가 뜨도록 mock으로 대체
+ * (RedissonTestConfig 참고).
  */
 @Import(RedissonTestConfig.class)
 @SpringBootTest
@@ -60,58 +58,58 @@ class OrganizationIsolationIntegrationTest {
 
   private static final Long ORG_A = 1L;
   private static final Long ORG_B = 2L;
-    @Autowired
-    private NfcTagRepository nfcTagRepository;
+  @Autowired private NfcTagRepository nfcTagRepository;
 
   private String tokenFor(User user) {
     // 실제 로그인 과정을 거치지 않고, 저장된 사용자 정보로 바로 유효한 토큰을 발급 (테스트 편의)
-    return jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
+    return jwtTokenProvider.createAccessToken(
+        user.getId(), user.getUsername(), user.getRole().name());
   }
 
   private User saveAdmin(String username, Long organizationId) {
     return userRepository.save(
-            User.builder()
-                    .username(username)
-                    .password("encoded-password")
-                    .name("관리자")
-                    .role(UserRole.ADMIN)
-                    .organizationId(organizationId)
-                    .build());
+        User.builder()
+            .username(username)
+            .password("encoded-password")
+            .name("관리자")
+            .role(UserRole.ADMIN)
+            .organizationId(organizationId)
+            .build());
   }
 
   private User saveStudent(String username, String groupName, Long organizationId) {
     return userRepository.save(
-            User.builder()
-                    .username(username)
-                    .password("encoded-password")
-                    .name("학생")
-                    .role(UserRole.STUDENT)
-                    .groupName(groupName)
-                    .organizationId(organizationId)
-                    .build());
+        User.builder()
+            .username(username)
+            .password("encoded-password")
+            .name("학생")
+            .role(UserRole.STUDENT)
+            .groupName(groupName)
+            .organizationId(organizationId)
+            .build());
   }
 
   private AttendanceSession saveSession(String title, Long createdBy, Long organizationId) {
     return sessionRepository.save(
-            AttendanceSession.builder()
-                    .organizationId(organizationId)
-                    .title(title)
-                    .startTime(LocalDateTime.now().minusHours(1))
-                    .endTime(LocalDateTime.now().plusHours(1))
-                    .lateThresholdMinutes(10)
-                    .status(SessionStatus.SCHEDULED)
-                    .createdBy(createdBy)
-                    .build());
+        AttendanceSession.builder()
+            .organizationId(organizationId)
+            .title(title)
+            .startTime(LocalDateTime.now().minusHours(1))
+            .endTime(LocalDateTime.now().plusHours(1))
+            .lateThresholdMinutes(10)
+            .status(SessionStatus.SCHEDULED)
+            .createdBy(createdBy)
+            .build());
   }
 
-  private NfcTag saveNfcTag(String uid, Long organizationId){
+  private NfcTag saveNfcTag(String uid, Long organizationId) {
     return nfcTagRepository.save(
-            NfcTag.builder()
-                    .organizationId(organizationId)
-                    .uid(uid)
-                    .name("태그-" + uid)
-                    .status(NfcTagStatus.ACTIVE)
-                    .build());
+        NfcTag.builder()
+            .organizationId(organizationId)
+            .uid(uid)
+            .name("태그-" + uid)
+            .status(NfcTagStatus.ACTIVE)
+            .build());
   }
 
   @Nested
@@ -129,10 +127,11 @@ class OrganizationIsolationIntegrationTest {
 
       // when & then
       // 단체 A 관리자 토큰으로 조회하면 단체 A 학생만 보여야 한다
-      mockMvc.perform(get("/api/users").header("Authorization", "Bearer " + tokenFor(adminA)))
-              .andExpect(status().isOk())
-              .andExpect(jsonPath("$.data.content.length()").value(1))
-              .andExpect(jsonPath("$.data.content[0].username").value("student-a"));
+      mockMvc
+          .perform(get("/api/users").header("Authorization", "Bearer " + tokenFor(adminA)))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.content.length()").value(1))
+          .andExpect(jsonPath("$.data.content[0].username").value("student-a"));
     }
   }
 
@@ -148,11 +147,12 @@ class OrganizationIsolationIntegrationTest {
       User studentB = saveStudent("student-b", "B반", ORG_B);
 
       // when & then
-      mockMvc.perform(
-                      get("/api/users/{userId}", studentB.getId())
-                              .header("Authorization", "Bearer " + tokenFor(adminA)))
-              .andExpect(status().isNotFound())
-              .andExpect(jsonPath("$.code").value("U001"));
+      mockMvc
+          .perform(
+              get("/api/users/{userId}", studentB.getId())
+                  .header("Authorization", "Bearer " + tokenFor(adminA)))
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.code").value("U001"));
     }
   }
 
@@ -169,10 +169,11 @@ class OrganizationIsolationIntegrationTest {
       saveStudent("student-b", "B반", ORG_B);
 
       // when & then
-      mockMvc.perform(get("/api/users/groups").header("Authorization", "Bearer " + tokenFor(adminA)))
-              .andExpect(status().isOk())
-              .andExpect(jsonPath("$.data.length()").value(1))
-              .andExpect(jsonPath("$.data[0]").value("A반"));
+      mockMvc
+          .perform(get("/api/users/groups").header("Authorization", "Bearer " + tokenFor(adminA)))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.length()").value(1))
+          .andExpect(jsonPath("$.data[0]").value("A반"));
     }
   }
 
@@ -192,11 +193,12 @@ class OrganizationIsolationIntegrationTest {
 
       // when & then
       // 다른 단체 소속이면 존재 자체를 노출하지 않기 위해 404로 처리해야 한다 (GetUser와 동일 정책)
-      mockMvc.perform(
-                      post("/api/users/{userId}/activate", studentB.getId())
-                              .header("Authorization", "Bearer " + tokenFor(adminA)))
-              .andExpect(status().isNotFound())
-              .andExpect(jsonPath("$.code").value("U001"));
+      mockMvc
+          .perform(
+              post("/api/users/{userId}/activate", studentB.getId())
+                  .header("Authorization", "Bearer " + tokenFor(adminA)))
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.code").value("U001"));
 
       assertThat(userRepository.findById(studentB.getId()).orElseThrow().getActive()).isFalse();
     }
@@ -216,10 +218,11 @@ class OrganizationIsolationIntegrationTest {
       saveSession("단체 B 세션", adminB.getId(), ORG_B);
 
       // when & then
-      mockMvc.perform(get("/api/sessions").header("Authorization", "Bearer " + tokenFor(adminA)))
-              .andExpect(status().isOk())
-              .andExpect(jsonPath("$.data.content.length()").value(1))
-              .andExpect(jsonPath("$.data.content[0].title").value("단체 A 세션"));
+      mockMvc
+          .perform(get("/api/sessions").header("Authorization", "Bearer " + tokenFor(adminA)))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.content.length()").value(1))
+          .andExpect(jsonPath("$.data.content[0].title").value("단체 A 세션"));
     }
   }
 
@@ -236,11 +239,12 @@ class OrganizationIsolationIntegrationTest {
       AttendanceSession sessionB = saveSession("단체 B 세션", adminB.getId(), ORG_B);
 
       // when & then
-      mockMvc.perform(
-                      get("/api/sessions/{sessionId}", sessionB.getId())
-                              .header("Authorization", "Bearer " + tokenFor(adminA)))
-              .andExpect(status().isNotFound())
-              .andExpect(jsonPath("$.code").value("S001"));
+      mockMvc
+          .perform(
+              get("/api/sessions/{sessionId}", sessionB.getId())
+                  .header("Authorization", "Bearer " + tokenFor(adminA)))
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.code").value("S001"));
     }
   }
 
@@ -258,11 +262,12 @@ class OrganizationIsolationIntegrationTest {
 
       // when & then
       // 세션 자체는 존재하지만 다른 단체 소속이므로, 있는지조차 모르게 404로 응답해야 한다
-      mockMvc.perform(
-                      post("/api/sessions/{sessionId}/start", sessionB.getId())
-                              .header("Authorization", "Bearer " + tokenFor(adminA)))
-              .andExpect(status().isNotFound())
-              .andExpect(jsonPath("$.code").value("S001"));
+      mockMvc
+          .perform(
+              post("/api/sessions/{sessionId}/start", sessionB.getId())
+                  .header("Authorization", "Bearer " + tokenFor(adminA)))
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.code").value("S001"));
     }
   }
 
@@ -279,11 +284,12 @@ class OrganizationIsolationIntegrationTest {
       AttendanceSession sessionB = saveSession("단체 B 세션", adminB.getId(), ORG_B);
 
       // when
-      mockMvc.perform(
-                      delete("/api/sessions/{sessionId}", sessionB.getId())
-                              .header("Authorization", "Bearer " + tokenFor(adminA)))
-              .andExpect(status().isNotFound())
-              .andExpect(jsonPath("$.code").value("S001"));
+      mockMvc
+          .perform(
+              delete("/api/sessions/{sessionId}", sessionB.getId())
+                  .header("Authorization", "Bearer " + tokenFor(adminA)))
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.code").value("S001"));
 
       // then - 차단만 되고 응답은 404였는지뿐 아니라, 실제로 삭제 안 됐는지도 확인
       assertThat(sessionRepository.existsById(sessionB.getId())).isTrue();
@@ -303,10 +309,11 @@ class OrganizationIsolationIntegrationTest {
       saveNfcTag("TAG-B", ORG_B);
 
       // when & then
-      mockMvc.perform(get("/api/nfc-tags").header("Authorization", "Bearer " + tokenFor(adminA)))
-              .andExpect(status().isOk())
-              .andExpect(jsonPath("$.data.content.length()").value(1))
-              .andExpect(jsonPath("$.data.content[0].uid").value("TAG-A"));
+      mockMvc
+          .perform(get("/api/nfc-tags").header("Authorization", "Bearer " + tokenFor(adminA)))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.content.length()").value(1))
+          .andExpect(jsonPath("$.data.content[0].uid").value("TAG-A"));
     }
   }
 
@@ -322,11 +329,12 @@ class OrganizationIsolationIntegrationTest {
       NfcTag tagB = saveNfcTag("TAG-B", ORG_B);
 
       // when & then
-      mockMvc.perform(
-                      get("/api/nfc-tags/{tagId}", tagB.getId())
-                              .header("Authorization", "Bearer " + tokenFor(adminA)))
-              .andExpect(status().isNotFound())
-              .andExpect(jsonPath("$.code").value("N001"));
+      mockMvc
+          .perform(
+              get("/api/nfc-tags/{tagId}", tagB.getId())
+                  .header("Authorization", "Bearer " + tokenFor(adminA)))
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.code").value("N001"));
     }
   }
 
@@ -342,13 +350,14 @@ class OrganizationIsolationIntegrationTest {
       NfcTag tagB = saveNfcTag("TAG-B", ORG_B);
 
       // when & then
-      mockMvc.perform(
-                      put("/api/nfc-tags/{tagId}", tagB.getId())
-                              .header("Authorization", "Bearer " + tokenFor(adminA))
-                              .contentType(MediaType.APPLICATION_JSON)
-                              .content("{\"name\":\"수정된 이름\"}"))
-              .andExpect(status().isNotFound())
-              .andExpect(jsonPath("$.code").value("N001"));
+      mockMvc
+          .perform(
+              put("/api/nfc-tags/{tagId}", tagB.getId())
+                  .header("Authorization", "Bearer " + tokenFor(adminA))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"name\":\"수정된 이름\"}"))
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.code").value("N001"));
     }
   }
 
@@ -364,11 +373,12 @@ class OrganizationIsolationIntegrationTest {
       NfcTag tagB = saveNfcTag("TAG-B", ORG_B);
 
       // when
-      mockMvc.perform(
-                      delete("/api/nfc-tags/{tagId}", tagB.getId())
-                              .header("Authorization", "Bearer " + tokenFor(adminA)))
-              .andExpect(status().isNotFound())
-              .andExpect(jsonPath("$.code").value("N001"));
+      mockMvc
+          .perform(
+              delete("/api/nfc-tags/{tagId}", tagB.getId())
+                  .header("Authorization", "Bearer " + tokenFor(adminA)))
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.code").value("N001"));
 
       // then
       assertThat(nfcTagRepository.existsById(tagB.getId())).isTrue();

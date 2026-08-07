@@ -83,9 +83,9 @@ public class SecurityConfig {
 
                     // 소셜 로그인 / 이메일 인증 조인 : 로그인 전이라 인증 토큰이 없는 상태에서 호출됨
                     .requestMatchers(
-                            "/api/auth/oauth/**",
-                            "/api/auth/join/email/**",
-                            "/api/auth/password-reset/**")
+                        "/api/auth/oauth/**",
+                        "/api/auth/join/email/**",
+                        "/api/auth/password-reset/**")
                     .permitAll()
 
                     // WebSocket 핸드셰이크 : 브라우저 네이티브 WebSocket은 커스텀 헤더를 못 보내

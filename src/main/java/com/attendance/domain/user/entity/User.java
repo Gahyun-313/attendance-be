@@ -28,8 +28,7 @@ public class User implements UserDetails {
   private String username;
 
   // 암호화된 비밀번호 - 소셜 로그인(provider != null) 계정은 비밀번호가 없어 null 가능
-  @Column
-  private String password;
+  @Column private String password;
 
   // 실제 이름
   @Column(nullable = false, length = 100)

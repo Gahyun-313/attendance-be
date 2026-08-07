@@ -49,22 +49,25 @@ public class NfcTagService {
 
   /** 단체 내 모든 NFC 태그 조회 (페이징) */
   public Page<NfcTagResponse> getAllNfcTags(Long organizationId, Pageable pageable) {
-    return nfcTagRepository.findByOrganizationId(organizationId, pageable).map(NfcTagResponse::from);
+    return nfcTagRepository
+        .findByOrganizationId(organizationId, pageable)
+        .map(NfcTagResponse::from);
   }
 
   /** 단체 + 상태별 NFC 태그 조회 (페이징) */
   public Page<NfcTagResponse> getNfcTagsByStatus(
-          NfcTagStatus status, Long organizationId, Pageable pageable) {
+      NfcTagStatus status, Long organizationId, Pageable pageable) {
     return nfcTagRepository
-            .findByOrganizationIdAndStatus(organizationId, status, pageable)
-            .map(NfcTagResponse::from);
+        .findByOrganizationIdAndStatus(organizationId, status, pageable)
+        .map(NfcTagResponse::from);
   }
 
   /** NFC 태그 검색 (이름 또는 위치) */
-  public Page<NfcTagResponse> searchNfcTags(String keyword, Long organizationId, Pageable pageable) {
+  public Page<NfcTagResponse> searchNfcTags(
+      String keyword, Long organizationId, Pageable pageable) {
     return nfcTagRepository
         .findByOrganizationIdAndNameContainingOrLocationContaining(
-                organizationId, keyword, keyword, pageable)
+            organizationId, keyword, keyword, pageable)
         .map(NfcTagResponse::from);
   }
 
@@ -105,14 +108,15 @@ public class NfcTagService {
   }
 
   /**
-   * ID + organizationId로 NFC 태그를 조회하는 공통 헬퍼
-   * 다른 단체 소속이면 존재 자체를 숨기기 위해 동일하게 404(NFC_TAG_NOT_FOUND)로 처리한다.
-   * - UserService.findUserByIdAndOrganization / SessionService.findSessionByIdAndOrganization과 동일한 패턴
+   * ID + organizationId로 NFC 태그를 조회하는 공통 헬퍼 다른 단체 소속이면 존재 자체를 숨기기 위해 동일하게 404(NFC_TAG_NOT_FOUND)로
+   * 처리한다. - UserService.findUserByIdAndOrganization /
+   * SessionService.findSessionByIdAndOrganization과 동일한 패턴
    */
   private NfcTag findNfcTagByIdAndOrganization(Long id, Long organizationId) {
     NfcTag nfcTag =
-            nfcTagRepository.findById(id)
-                    .orElseThrow(() -> new EntityNotFoundException(ErrorCode.NFC_TAG_NOT_FOUND));
+        nfcTagRepository
+            .findById(id)
+            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.NFC_TAG_NOT_FOUND));
     if (!nfcTag.getOrganizationId().equals(organizationId)) {
       throw new EntityNotFoundException(ErrorCode.NFC_TAG_NOT_FOUND);
     }

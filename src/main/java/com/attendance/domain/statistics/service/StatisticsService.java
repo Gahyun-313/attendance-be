@@ -18,9 +18,7 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.cache.CacheProperties;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -98,37 +96,36 @@ public class StatisticsService {
   }
 
   /**
-   * 출석률 상/하위 랭킹 (ADMIN) GET /api/statistics/ranking
-   * - 학생렬 누적 출석률을 계산해 상위/하위 N명을 보여준다.
-   * - 학생 수 만큼 count 쿼리를 반복 실행하는 무거운 집계라 dashboard와 동일하게 1분 TTL 캐싱 적용 (organization + limit 조합이 캐시 키)
-   * - 출석 기록이 하나도 없는 학생은 순위를 매길 근거가 없어 랭킹에서 제외한다.
+   * 출석률 상/하위 랭킹 (ADMIN) GET /api/statistics/ranking - 학생렬 누적 출석률을 계산해 상위/하위 N명을 보여준다. - 학생 수 만큼
+   * count 쿼리를 반복 실행하는 무거운 집계라 dashboard와 동일하게 1분 TTL 캐싱 적용 (organization + limit 조합이 캐시 키) - 출석 기록이
+   * 하나도 없는 학생은 순위를 매길 근거가 없어 랭킹에서 제외한다.
    */
   @Cacheable(cacheNames = RedisConfig.CACHE_ATTENDACNE_RANKING)
   public AttendanceRankingResponse getAttendanceRanking(Long organizationId, int limit) {
     int safeLimit = Math.max(RANKING_MIN_LIMIT, Math.min(limit, RANKING_MAX_LIMIT));
 
     List<User> students =
-            userRepository.findByRoleAndOrganizationId(UserRole.STUDENT, organizationId);
+        userRepository.findByRoleAndOrganizationId(UserRole.STUDENT, organizationId);
 
     List<UserAttendanceRanking> rankings =
-            students.stream().map(this::toRankingOrNull).filter(Objects::nonNull).toList();
+        students.stream().map(this::toRankingOrNull).filter(Objects::nonNull).toList();
 
     List<UserAttendanceRanking> topRanking =
-            rankings.stream()
-                    .sorted(Comparator.comparingDouble(UserAttendanceRanking::getAttendanceRate).reversed())
-                    .limit(safeLimit)
-                    .toList();
+        rankings.stream()
+            .sorted(Comparator.comparingDouble(UserAttendanceRanking::getAttendanceRate).reversed())
+            .limit(safeLimit)
+            .toList();
 
     List<UserAttendanceRanking> bottomRanking =
-            rankings.stream()
-                    .sorted(Comparator.comparingDouble(UserAttendanceRanking::getAttendanceRate))
-                    .limit(safeLimit)
-                    .toList();
+        rankings.stream()
+            .sorted(Comparator.comparingDouble(UserAttendanceRanking::getAttendanceRate))
+            .limit(safeLimit)
+            .toList();
 
     return AttendanceRankingResponse.builder()
-            .topRanking(topRanking)
-            .bottomRanking(bottomRanking)
-            .build();
+        .topRanking(topRanking)
+        .bottomRanking(bottomRanking)
+        .build();
   }
 
   /**
@@ -179,7 +176,9 @@ public class StatisticsService {
         recentSessions.stream()
             .mapToDouble(
                 session ->
-                    attendanceService.getSessionDashboard(session.getId(), session.getOrganizationId()).getAttendanceRate())
+                    attendanceService
+                        .getSessionDashboard(session.getId(), session.getOrganizationId())
+                        .getAttendanceRate())
             .average()
             .orElse(0.0);
     return Math.round(average * 10.0) / 10.0;
@@ -220,17 +219,17 @@ public class StatisticsService {
         .toList();
   }
 
-  /** 학생 1명의 출석 기록을 집계해 랭킹 항목으로 변환 - 출석 기록이 하나도 없으면 null 반환(호출부에서 필터링) **/
+  /** 학생 1명의 출석 기록을 집계해 랭킹 항목으로 변환 - 출석 기록이 하나도 없으면 null 반환(호출부에서 필터링) * */
   private UserAttendanceRanking toRankingOrNull(User student) {
     long present =
-            attendanceRepository.countByUserIdAndStatus(student.getId(), AttendanceStatus.PRESENT);
+        attendanceRepository.countByUserIdAndStatus(student.getId(), AttendanceStatus.PRESENT);
     long late = attendanceRepository.countByUserIdAndStatus(student.getId(), AttendanceStatus.LATE);
     long absent =
-            attendanceRepository.countByUserIdAndStatus(student.getId(), AttendanceStatus.ABSENT);
+        attendanceRepository.countByUserIdAndStatus(student.getId(), AttendanceStatus.ABSENT);
     if (present + late + absent == 0) {
       return null;
     }
     return UserAttendanceRanking.of(
-            student.getId(), student.getName(), student.getGroupName(), present, late, absent);
+        student.getId(), student.getName(), student.getGroupName(), present, late, absent);
   }
 }

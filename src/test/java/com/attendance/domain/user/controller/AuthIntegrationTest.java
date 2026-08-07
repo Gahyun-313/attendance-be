@@ -75,30 +75,30 @@ class AuthIntegrationTest {
   private User saveUserWithEmail(String username, String rawPassword, String email) {
     // 이메일 인증으로 가입한 ADMIN 사용자의 비밀번호 재설정 테스트용
     User user =
-            User.builder()
-                    .username(username)
-                    .password(passwordEncoder.encode(rawPassword))
-                    .email(email)
-                    .name("테스트 사용자")
-                    .role(UserRole.ADMIN)
-                    .organizationId(1L)
-                    .build();
+        User.builder()
+            .username(username)
+            .password(passwordEncoder.encode(rawPassword))
+            .email(email)
+            .name("테스트 사용자")
+            .role(UserRole.ADMIN)
+            .organizationId(1L)
+            .build();
     return userRepository.save(user);
   }
 
   private User saveOAuthUser(String username, String email) {
     // 소셜 로그인 전용 계정 - password가 없어 비밀번호 재설정 대상이 아님을 검증하는 데 사용
     User user =
-            User.builder()
-                    .username(username)
-                    .password(null)
-                    .email(email)
-                    .name("소셜 계정")
-                    .role(UserRole.ADMIN)
-                    .organizationId(1L)
-                    .provider("GOOGLE")
-                    .providerId("google-sub-123")
-                    .build();
+        User.builder()
+            .username(username)
+            .password(null)
+            .email(email)
+            .name("소셜 계정")
+            .role(UserRole.ADMIN)
+            .organizationId(1L)
+            .provider("GOOGLE")
+            .providerId("google-sub-123")
+            .build();
     return userRepository.save(user);
   }
 
@@ -243,17 +243,17 @@ class AuthIntegrationTest {
       // given
       saveUserWithEmail("reset01", "old-password1", "reset01@test.com");
       String requestBody =
-              """
+          """
                   {"email":"reset01@test.com"}
                   """;
 
       // when & then
       mockMvc
-              .perform(
-                      post("/api/auth/password-reset/request")
-                              .contentType(MediaType.APPLICATION_JSON)
-                              .content(requestBody))
-              .andExpect(status().isOk());
+          .perform(
+              post("/api/auth/password-reset/request")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(requestBody))
+          .andExpect(status().isOk());
 
       // 실제 메일 발송(mailSender.send)이 정확히 한 번 호출됐는지 확인
       Mockito.verify(mailSender).send(Mockito.any(SimpleMailMessage.class));
@@ -264,18 +264,18 @@ class AuthIntegrationTest {
     void unknownEmail_returns404() throws Exception {
       // given
       String requestBody =
-              """
+          """
                   {"email":"no-such-email@test.com"}
                   """;
 
       // when & then
       mockMvc
-              .perform(
-                      post("/api/auth/password-reset/request")
-                              .contentType(MediaType.APPLICATION_JSON)
-                              .content(requestBody))
-              .andExpect(status().isNotFound())
-              .andExpect(jsonPath("$.code").value("U001"));
+          .perform(
+              post("/api/auth/password-reset/request")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(requestBody))
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath("$.code").value("U001"));
     }
 
     @Test
@@ -284,18 +284,18 @@ class AuthIntegrationTest {
       // given
       saveOAuthUser("google-admin", "social@test.com");
       String requestBody =
-              """
+          """
                   {"email":"social@test.com"}
                   """;
 
       // when & then
       mockMvc
-              .perform(
-                      post("/api/auth/password-reset/request")
-                              .contentType(MediaType.APPLICATION_JSON)
-                              .content(requestBody))
-              .andExpect(status().isBadRequest())
-              .andExpect(jsonPath("$.code").value("O007"));
+          .perform(
+              post("/api/auth/password-reset/request")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(requestBody))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.code").value("O007"));
     }
   }
 
@@ -310,14 +310,14 @@ class AuthIntegrationTest {
       // 코드를 하드코딩할 수 없으니(매번 랜덤) 실제로 발송 단계를 거쳐 mock에 캡처된 값을 그대로 사용한다
       saveUserWithEmail("reset02", "old-password1", "reset02@test.com");
       mockMvc
-              .perform(
-                      post("/api/auth/password-reset/request")
-                              .contentType(MediaType.APPLICATION_JSON)
-                              .content(
-                                      """
+          .perform(
+              post("/api/auth/password-reset/request")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      """
                                       {"email":"reset02@test.com"}
                                       """))
-              .andExpect(status().isOk());
+          .andExpect(status().isOk());
 
       ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
       Mockito.verify(mailSender).send(captor.capture());
@@ -325,41 +325,41 @@ class AuthIntegrationTest {
 
       // when & then - 1) 받은 코드로 검증 + 새 비밀번호 적용
       String verifyBody =
-              String.format(
-                      """
+          String.format(
+              """
                       {"email":"reset02@test.com","code":"%s","newPassword":"new-password1"}
                       """,
-                      code);
+              code);
       mockMvc
-              .perform(
-                      post("/api/auth/password-reset/verify")
-                              .contentType(MediaType.APPLICATION_JSON)
-                              .content(verifyBody))
-              .andExpect(status().isOk());
+          .perform(
+              post("/api/auth/password-reset/verify")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(verifyBody))
+          .andExpect(status().isOk());
 
       // when & then - 2) 새 비밀번호로 로그인 성공
       mockMvc
-              .perform(
-                      post("/api/auth/login")
-                              .contentType(MediaType.APPLICATION_JSON)
-                              .content(
-                                      """
+          .perform(
+              post("/api/auth/login")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      """
                                       {"username":"reset02","password":"new-password1"}
                                       """))
-              .andExpect(status().isOk())
-              .andExpect(jsonPath("$.data.accessToken").isNotEmpty());
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.data.accessToken").isNotEmpty());
 
       // when & then - 3) 예전 비밀번호로는 더 이상 로그인 안 됨
       mockMvc
-              .perform(
-                      post("/api/auth/login")
-                              .contentType(MediaType.APPLICATION_JSON)
-                              .content(
-                                      """
+          .perform(
+              post("/api/auth/login")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      """
                                       {"username":"reset02","password":"old-password1"}
                                       """))
-              .andExpect(status().isUnauthorized())
-              .andExpect(jsonPath("$.code").value("A005"));
+          .andExpect(status().isUnauthorized())
+          .andExpect(jsonPath("$.code").value("A005"));
     }
 
     @Test
@@ -368,18 +368,18 @@ class AuthIntegrationTest {
       // given
       saveUserWithEmail("reset03", "old-password1", "reset03@test.com");
       String verifyBody =
-              """
+          """
                   {"email":"reset03@test.com","code":"000000","newPassword":"new-password1"}
                   """;
 
       // when & then
       mockMvc
-              .perform(
-                      post("/api/auth/password-reset/verify")
-                              .contentType(MediaType.APPLICATION_JSON)
-                              .content(verifyBody))
-              .andExpect(status().isBadRequest())
-              .andExpect(jsonPath("$.code").value("O005"));
+          .perform(
+              post("/api/auth/password-reset/verify")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(verifyBody))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.code").value("O005"));
     }
 
     @Test
@@ -388,27 +388,27 @@ class AuthIntegrationTest {
       // given
       saveUserWithEmail("reset04", "old-password1", "reset04@test.com");
       mockMvc
-              .perform(
-                      post("/api/auth/password-reset/request")
-                              .contentType(MediaType.APPLICATION_JSON)
-                              .content(
-                                      """
+          .perform(
+              post("/api/auth/password-reset/request")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      """
                                       {"email":"reset04@test.com"}
                                       """))
-              .andExpect(status().isOk());
+          .andExpect(status().isOk());
 
       // when & then - 실제 코드 대신 임의의 틀린 코드로 검증 시도
       String verifyBody =
-              """
+          """
                   {"email":"reset04@test.com","code":"999999","newPassword":"new-password1"}
                   """;
       mockMvc
-              .perform(
-                      post("/api/auth/password-reset/verify")
-                              .contentType(MediaType.APPLICATION_JSON)
-                              .content(verifyBody))
-              .andExpect(status().isBadRequest())
-              .andExpect(jsonPath("$.code").value("O006"));
+          .perform(
+              post("/api/auth/password-reset/verify")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(verifyBody))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.code").value("O006"));
     }
 
     @Test
@@ -417,41 +417,41 @@ class AuthIntegrationTest {
       // given
       saveUserWithEmail("reset05", "old-password1", "reset05@test.com");
       mockMvc
-              .perform(
-                      post("/api/auth/password-reset/request")
-                              .contentType(MediaType.APPLICATION_JSON)
-                              .content(
-                                      """
+          .perform(
+              post("/api/auth/password-reset/request")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      """
                                       {"email":"reset05@test.com"}
                                       """))
-              .andExpect(status().isOk());
+          .andExpect(status().isOk());
 
       ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
       Mockito.verify(mailSender).send(captor.capture());
       String code = extractCode(captor.getValue());
       String verifyBody =
-              String.format(
-                      """
+          String.format(
+              """
                       {"email":"reset05@test.com","code":"%s","newPassword":"new-password1"}
                       """,
-                      code);
+              code);
 
       // when - 첫 번째 검증은 성공
       mockMvc
-              .perform(
-                      post("/api/auth/password-reset/verify")
-                              .contentType(MediaType.APPLICATION_JSON)
-                              .content(verifyBody))
-              .andExpect(status().isOk());
+          .perform(
+              post("/api/auth/password-reset/verify")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(verifyBody))
+          .andExpect(status().isOk());
 
       // then - 같은 코드로 두 번째 시도하면 이미 소비되어 EXPIRED로 실패
       mockMvc
-              .perform(
-                      post("/api/auth/password-reset/verify")
-                              .contentType(MediaType.APPLICATION_JSON)
-                              .content(verifyBody))
-              .andExpect(status().isBadRequest())
-              .andExpect(jsonPath("$.code").value("O005"));
+          .perform(
+              post("/api/auth/password-reset/verify")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(verifyBody))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.code").value("O005"));
     }
   }
 }

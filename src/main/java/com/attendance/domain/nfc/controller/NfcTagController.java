@@ -33,8 +33,7 @@ public class NfcTagController {
   public ResponseEntity<ApiResponse<NfcTagResponse>> createNfcTag(
       @Valid @RequestBody NfcTagRequest request,
       @AuthenticationPrincipal CustomUserDetails userDetails) {
-    NfcTagResponse response =
-            nfcTagService.createNfcTag(request, userDetails.getOrganizationId());
+    NfcTagResponse response = nfcTagService.createNfcTag(request, userDetails.getOrganizationId());
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(ApiResponse.success(response, "NFC 태그가 등록되었습니다"));
   }
@@ -48,8 +47,7 @@ public class NfcTagController {
           Pageable pageable) {
     Page<NfcTagResponse> response =
         status != null
-            ? nfcTagService.getNfcTagsByStatus(
-                    status, userDetails.getOrganizationId(), pageable)
+            ? nfcTagService.getNfcTagsByStatus(status, userDetails.getOrganizationId(), pageable)
             : nfcTagService.getAllNfcTags(userDetails.getOrganizationId(), pageable);
     return ResponseEntity.ok(ApiResponse.success(response, "NFC 태그 목록 조회 성공"));
   }
@@ -57,7 +55,7 @@ public class NfcTagController {
   /** NFC 태그 상세 조회 GET /api/nfc-tags/{tagId} */
   @GetMapping("/{tagId}")
   public ResponseEntity<ApiResponse<NfcTagResponse>> getNfcTag(
-          @PathVariable Long tagId, @AuthenticationPrincipal CustomUserDetails userDetails) {
+      @PathVariable Long tagId, @AuthenticationPrincipal CustomUserDetails userDetails) {
     NfcTagResponse response = nfcTagService.getNfcTagById(tagId, userDetails.getOrganizationId());
     return ResponseEntity.ok(ApiResponse.success(response, "NFC 태그 조회 성공"));
   }
@@ -76,8 +74,8 @@ public class NfcTagController {
       @PathVariable Long tagId,
       @Valid @RequestBody NfcTagUpdateRequest request,
       @AuthenticationPrincipal CustomUserDetails userDetails) {
-    NfcTagResponse response = nfcTagService.updateNfcTag(
-            tagId, request, userDetails.getOrganizationId());
+    NfcTagResponse response =
+        nfcTagService.updateNfcTag(tagId, request, userDetails.getOrganizationId());
     return ResponseEntity.ok(ApiResponse.success(response, "NFC 태그가 수정되었습니다"));
   }
 
@@ -85,9 +83,8 @@ public class NfcTagController {
   @PreAuthorize("hasRole('ADMIN')")
   @PostMapping("/{tagId}/activate")
   public ResponseEntity<ApiResponse<NfcTagResponse>> activateNfcTag(
-          @PathVariable Long tagId, @AuthenticationPrincipal CustomUserDetails userDetails) {
-    NfcTagResponse response =
-            nfcTagService.activateNfcTag(tagId, userDetails.getOrganizationId());
+      @PathVariable Long tagId, @AuthenticationPrincipal CustomUserDetails userDetails) {
+    NfcTagResponse response = nfcTagService.activateNfcTag(tagId, userDetails.getOrganizationId());
     return ResponseEntity.ok(ApiResponse.success(response, "NFC 태그가 활성화되었습니다"));
   }
 
@@ -95,9 +92,9 @@ public class NfcTagController {
   @PreAuthorize("hasRole('ADMIN')")
   @PostMapping("/{tagId}/deactivate")
   public ResponseEntity<ApiResponse<NfcTagResponse>> deactivateNfcTag(
-          @PathVariable Long tagId, @AuthenticationPrincipal CustomUserDetails userDetails) {
+      @PathVariable Long tagId, @AuthenticationPrincipal CustomUserDetails userDetails) {
     NfcTagResponse response =
-            nfcTagService.deactivateNfcTag(tagId, userDetails.getOrganizationId());
+        nfcTagService.deactivateNfcTag(tagId, userDetails.getOrganizationId());
     return ResponseEntity.ok(ApiResponse.success(response, "NFC 태그가 비활성화되었습니다"));
   }
 
@@ -105,7 +102,7 @@ public class NfcTagController {
   @PreAuthorize("hasRole('ADMIN')")
   @DeleteMapping("/{tagId}")
   public ResponseEntity<ApiResponse<Void>> deleteNfcTag(
-          @PathVariable Long tagId, @AuthenticationPrincipal CustomUserDetails userDetails) {
+      @PathVariable Long tagId, @AuthenticationPrincipal CustomUserDetails userDetails) {
     nfcTagService.deleteNfcTag(tagId, userDetails.getOrganizationId());
     return ResponseEntity.ok(ApiResponse.success("NFC 태그가 삭제되었습니다"));
   }

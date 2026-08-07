@@ -30,10 +30,10 @@ import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactor
  *
  * <p>[StringRedisTemplate까지 같이 깨지는 문제] redisson-spring-boot-starter가 클래스패스에 있으면 Spring Boot가
  * StringRedisTemplate(EmailVerificationService가 인증 코드 저장에 사용)에도 RedissonClient 기반
- * RedissonConnectionFactory를 자동으로 물린다. 그래서 RedissonClient를 스텁 없는 mock으로 바꿔버리면 분산 락뿐 아니라
- * "진짜 Redis 값 저장/조회"까지 mock 위에서 동작하게 되어 getConfig() 등에서 NullPointerException이 난다. 아래
- * redisConnectionFactory() 빈으로 StringRedisTemplate이 쓸 커넥션 팩토리를 로컬 Redis(application-local.yml과 동일한
- * localhost:6379)로 직접 분리해줘서, 분산 락 관련 코드만 mock을 타고 실제 값 저장/조회는 로컬 Redis를 그대로 쓰게 한다.
+ * RedissonConnectionFactory를 자동으로 물린다. 그래서 RedissonClient를 스텁 없는 mock으로 바꿔버리면 분산 락뿐 아니라 "진짜 Redis 값
+ * 저장/조회"까지 mock 위에서 동작하게 되어 getConfig() 등에서 NullPointerException이 난다. 아래 redisConnectionFactory()
+ * 빈으로 StringRedisTemplate이 쓸 커넥션 팩토리를 로컬 Redis(application-local.yml과 동일한 localhost:6379)로 직접
+ * 분리해줘서, 분산 락 관련 코드만 mock을 타고 실제 값 저장/조회는 로컬 Redis를 그대로 쓰게 한다.
  */
 @TestConfiguration
 public class RedissonTestConfig {

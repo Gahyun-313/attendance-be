@@ -49,10 +49,10 @@ public class StatisticsController {
   @GetMapping("/ranking")
   // limit: 상/하위 몇 명씩 보여줄지 (기본겂 5, 1~50으로 clamp됨)
   public ResponseEntity<ApiResponse<AttendanceRankingResponse>> getAttendanceRanking(
-          @RequestParam(defaultValue = "5") int limit,
-          @AuthenticationPrincipal CustomUserDetails userDetails) {
+      @RequestParam(defaultValue = "5") int limit,
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
     AttendanceRankingResponse response =
-            statisticsService.getAttendanceRanking(userDetails.getOrganizationId(), limit);
+        statisticsService.getAttendanceRanking(userDetails.getOrganizationId(), limit);
     return ResponseEntity.ok(ApiResponse.success(response, "출석률 랭킹 조회 성공"));
   }
 
