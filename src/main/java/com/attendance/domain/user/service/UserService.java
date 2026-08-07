@@ -1,6 +1,5 @@
 package com.attendance.domain.user.service;
 
-import com.attendance.domain.attendance.entity.AttendanceRecord;
 import com.attendance.domain.attendance.entity.AttendanceStatus;
 import com.attendance.domain.attendance.repository.AttendanceRepository;
 import com.attendance.domain.user.dto.*;
@@ -82,30 +81,33 @@ public class UserService {
   }
 
   /**
-   * 사용자 대시보드 (ADMIN 전용) GET /api/users/dashboard - 사용자 관리 화면 상단 요약 카드
-   * - 전체/활성 사용자 수, 평균 출석률, 이번 달 신규 대상자 수
-   * - StatisticsService의 overall/dashboard와 동일하게 1분 TTL 캐싱 (organizationId가 캐시 키라서 단체별로 분리됨)
-   * - 평균 출석률은 OverallStatisticsResponse와 동일한 공식(전체 집계 방식)을 재사용한다.
+   * 사용자 대시보드 (ADMIN 전용) GET /api/users/dashboard - 사용자 관리 화면 상단 요약 카드 - 전체/활성 사용자 수, 평균 출석률, 이번 달
+   * 신규 대상자 수 - StatisticsService의 overall/dashboard와 동일하게 1분 TTL 캐싱 (organizationId가 캐시 키라서 단체별로
+   * 분리됨) - 평균 출석률은 OverallStatisticsResponse와 동일한 공식(전체 집계 방식)을 재사용한다.
    */
   @Cacheable(cacheNames = RedisConfig.CACHE_USER_DASHBOARD)
   public UserDashboardResponse getUserDashboard(Long organizationId) {
     long totalUsers = userRepository.countByRoleAndOrganizationId(UserRole.STUDENT, organizationId);
     long activeUsers =
-            userRepository.countByRoleAndOrganizationIdAndActive(UserRole.STUDENT, organizationId, true);
+        userRepository.countByRoleAndOrganizationIdAndActive(
+            UserRole.STUDENT, organizationId, true);
 
     long present =
-            attendanceRepository.countByStatusAndOrganizationId(AttendanceStatus.PRESENT, organizationId);
+        attendanceRepository.countByStatusAndOrganizationId(
+            AttendanceStatus.PRESENT, organizationId);
     long late =
-            attendanceRepository.countByStatusAndOrganizationId(AttendanceStatus.LATE, organizationId);
+        attendanceRepository.countByStatusAndOrganizationId(AttendanceStatus.LATE, organizationId);
     long absent =
-            attendanceRepository.countByStatusAndOrganizationId(AttendanceStatus.ABSENT, organizationId);
+        attendanceRepository.countByStatusAndOrganizationId(
+            AttendanceStatus.ABSENT, organizationId);
 
     LocalDateTime startOfMonth = LocalDate.now().withDayOfMonth(1).atStartOfDay();
     long newUsersThisMonth =
-            userRepository.countByRoleAndOrganizationIdAndCreatedAtBetween(
-                    UserRole.STUDENT, organizationId, startOfMonth, LocalDateTime.now());
+        userRepository.countByRoleAndOrganizationIdAndCreatedAtBetween(
+            UserRole.STUDENT, organizationId, startOfMonth, LocalDateTime.now());
 
-    return UserDashboardResponse.of(totalUsers, activeUsers, present, late, absent, newUsersThisMonth);
+    return UserDashboardResponse.of(
+        totalUsers, activeUsers, present, late, absent, newUsersThisMonth);
   }
 
   /** 내 정보 조회 (본인 전용) GET /api/users/me */
@@ -126,12 +128,13 @@ public class UserService {
     User user = findUserByIdAndOrganization(userId, organizationId);
 
     if (request.getEmail() != null
-            && !request.getEmail().equals(user.getEmail())
-            && userRepository.existsByEmail(request.getEmail())) {
+        && !request.getEmail().equals(user.getEmail())
+        && userRepository.existsByEmail(request.getEmail())) {
       throw new DuplicateException(ErrorCode.DUPLICATE_EMAIL);
     }
 
-    user.updateInfo(request.getName(), request.getEmail(), request.getGroupName(), request.getNote());
+    user.updateInfo(
+        request.getName(), request.getEmail(), request.getGroupName(), request.getNote());
     return UserResponse.from(user);
   }
 
@@ -146,8 +149,7 @@ public class UserService {
   }
 
   /**
-   * 사용자 재활성화 (ADMIN 전용) POST /api/users/{userId}/active
-   * - deleteUser로 비활성화 된 사용자를 다시 활성 상태로 되돌린다.
+   * 사용자 재활성화 (ADMIN 전용) POST /api/users/{userId}/active - deleteUser로 비활성화 된 사용자를 다시 활성 상태로 되돌린다.
    */
   @Transactional
   public UserResponse activateUser(Long userID, Long organizationId) {
@@ -175,12 +177,12 @@ public class UserService {
     user.changePassword(encodedPassword);
   }
 
-  /**
-   * 사용자 조회 + 소속 단체 검증 공통 메서드 - 다른 단체 소속 userId를 조작(수정/삭제)하려는 시도를 존재 자체가 없는 것처럼(404) 차단한다.
-   */
+  /** 사용자 조회 + 소속 단체 검증 공통 메서드 - 다른 단체 소속 userId를 조작(수정/삭제)하려는 시도를 존재 자체가 없는 것처럼(404) 차단한다. */
   private User findUserByIdAndOrganization(Long userId, Long organizationId) {
     User user =
-            userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
     if (!user.getOrganizationId().equals(organizationId)) {
       throw new EntityNotFoundException(ErrorCode.USER_NOT_FOUND);
     }

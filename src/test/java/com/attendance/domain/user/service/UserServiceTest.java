@@ -269,8 +269,8 @@ class UserServiceTest {
     void success_activatesUser() {
       // given
       // 비활성화된 상태의 사용자가 존재하는 상황 - UserResponse.from()이 role.name()을 호출하므로 role도 채워야 함
-      User user
-              = User.builder().id(1L).active(false).organizationId(1L).role(UserRole.STUDENT).build();
+      User user =
+          User.builder().id(1L).active(false).organizationId(1L).role(UserRole.STUDENT).build();
       given(userRepository.findById(1L)).willReturn(Optional.of(user));
 
       // when
@@ -291,9 +291,9 @@ class UserServiceTest {
 
       // when & then
       assertThatThrownBy(() -> userService.activateUser(1L, 1L))
-              .isInstanceOf(EntityNotFoundException.class)
-              .extracting(e -> ((EntityNotFoundException) e).getErrorCode())
-              .isEqualTo(ErrorCode.USER_NOT_FOUND);
+          .isInstanceOf(EntityNotFoundException.class)
+          .extracting(e -> ((EntityNotFoundException) e).getErrorCode())
+          .isEqualTo(ErrorCode.USER_NOT_FOUND);
     }
 
     @Test
@@ -304,9 +304,9 @@ class UserServiceTest {
 
       // when & then
       assertThatThrownBy(() -> userService.activateUser(999L, 1L))
-              .isInstanceOf(EntityNotFoundException.class)
-              .extracting(e -> ((EntityNotFoundException) e).getErrorCode())
-              .isEqualTo(ErrorCode.USER_NOT_FOUND);
+          .isInstanceOf(EntityNotFoundException.class)
+          .extracting(e -> ((EntityNotFoundException) e).getErrorCode())
+          .isEqualTo(ErrorCode.USER_NOT_FOUND);
     }
   }
 
@@ -319,8 +319,13 @@ class UserServiceTest {
     void duplicateEmail_throwsException() {
       // given
       // 기존 email과 다른 email로 변경하려는데, 해당 email이 이미 존재하는 상황
-      User user = User.builder()
-              .id(1L).email("old@test.com").role(UserRole.STUDENT).organizationId(1L).build();
+      User user =
+          User.builder()
+              .id(1L)
+              .email("old@test.com")
+              .role(UserRole.STUDENT)
+              .organizationId(1L)
+              .build();
       UserUpdateRequest request = new UserUpdateRequest("new@test.com", "홍길동", "A반", null);
       given(userRepository.findById(1L)).willReturn(Optional.of(user));
       given(userRepository.existsByEmail("new@test.com")).willReturn(true);
@@ -340,12 +345,12 @@ class UserServiceTest {
       // email은 기존과 동일하게 유지하고 name만 변경하는 상황
       User user =
           User.builder()
-                  .id(1L)
-                  .email("same@test.com")
-                  .name("old")
-                  .role(UserRole.STUDENT)
-                  .organizationId(1L)
-                  .build();
+              .id(1L)
+              .email("same@test.com")
+              .name("old")
+              .role(UserRole.STUDENT)
+              .organizationId(1L)
+              .build();
       UserUpdateRequest request = new UserUpdateRequest("same@test.com", "new-name", null, null);
       given(userRepository.findById(1L)).willReturn(Optional.of(user));
 
@@ -365,13 +370,13 @@ class UserServiceTest {
       // email은 수정하지 않고 이름과 그룹만 변경하는 상황
       User user =
           User.builder()
-                  .id(1L)
-                  .email("old@test.com")
-                  .name("old-name")
-                  .groupName("old-group")
-                  .role(UserRole.STUDENT)
-                  .organizationId(1L)
-                  .build();
+              .id(1L)
+              .email("old@test.com")
+              .name("old-name")
+              .groupName("old-group")
+              .role(UserRole.STUDENT)
+              .organizationId(1L)
+              .build();
       UserUpdateRequest request = new UserUpdateRequest(null, "new-name", "new-group", null);
       given(userRepository.findById(1L)).willReturn(Optional.of(user));
 

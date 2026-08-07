@@ -21,9 +21,9 @@ public interface NfcTagRepository extends JpaRepository<NfcTag, Long> {
 
   /** 단체 + 상태별 NFC 태그 조회 (페이징) - 관리자 화면에서 활성/비활성 태그 조회에 사용 */
   Page<NfcTag> findByOrganizationIdAndStatus(
-          Long organizationId, NfcTagStatus status, Pageable pageable);
+      Long organizationId, NfcTagStatus status, Pageable pageable);
 
   /** 단체 + 이름/위치로 NFC 태그 검색 (페이징) - 관리자 화면에서 태그 검색에 사용 */
   Page<NfcTag> findByOrganizationIdAndNameContainingOrLocationContaining(
-          Long organizationId, String name, String location, Pageable pageable);
+      Long organizationId, String name, String location, Pageable pageable);
 }

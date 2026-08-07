@@ -68,7 +68,8 @@ public class AttendanceController {
   @GetMapping("/sessions/{sessionId}")
   public ResponseEntity<ApiResponse<List<AttendanceResponse>>> getSessionAttendances(
       @PathVariable Long sessionId, @AuthenticationPrincipal CustomUserDetails userDetails) {
-    List<AttendanceResponse> response = attendanceService.getSessionAttendances(sessionId, userDetails.getOrganizationId());
+    List<AttendanceResponse> response =
+        attendanceService.getSessionAttendances(sessionId, userDetails.getOrganizationId());
     return ResponseEntity.ok(ApiResponse.success(response, "세션별 출석 현황 조회 성공"));
   }
 
@@ -83,14 +84,17 @@ public class AttendanceController {
       @AuthenticationPrincipal CustomUserDetails userDetails) {
     // modifiedBy는 요청 바디가 아니라 인증 주체(관리자 이름)에서 채움 - 위변조 방지
     String modifiedBy = userDetails.getUser().getName();
-    AttendanceResponse response = attendanceService.updateStatus(attendanceId, request, modifiedBy, userDetails.getOrganizationId());
+    AttendanceResponse response =
+        attendanceService.updateStatus(
+            attendanceId, request, modifiedBy, userDetails.getOrganizationId());
     return ResponseEntity.ok(ApiResponse.success(response, "출석 상태가 수정되었습니다"));
   }
 
   /** 출석 기록 삭제 DELETE /api/attendances/{attendanceId} - ADMIN 전용 */
   @PreAuthorize("hasRole('ADMIN')")
   @DeleteMapping("/{attendanceId}")
-  public ResponseEntity<ApiResponse<Void>> deleteAttendance(@PathVariable Long attendanceId, @AuthenticationPrincipal CustomUserDetails userDetails) {
+  public ResponseEntity<ApiResponse<Void>> deleteAttendance(
+      @PathVariable Long attendanceId, @AuthenticationPrincipal CustomUserDetails userDetails) {
     attendanceService.deleteAttendance(attendanceId, userDetails.getOrganizationId());
     return ResponseEntity.ok(ApiResponse.success("출석 기록이 삭제되었습니다"));
   }
@@ -102,7 +106,8 @@ public class AttendanceController {
   @GetMapping("/sessions/{sessionId}/dashboard")
   public ResponseEntity<ApiResponse<AttendanceDashboardResponse>> getSessionDashboard(
       @PathVariable Long sessionId, @AuthenticationPrincipal CustomUserDetails userDetails) {
-    AttendanceDashboardResponse response = attendanceService.getSessionDashboard(sessionId, userDetails.getOrganizationId());
+    AttendanceDashboardResponse response =
+        attendanceService.getSessionDashboard(sessionId, userDetails.getOrganizationId());
     return ResponseEntity.ok(ApiResponse.success(response, "출석 대시보드 조회 성공"));
   }
 }

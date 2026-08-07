@@ -122,11 +122,11 @@ class AttendanceFlowIntegrationTest {
     NfcTag tag =
         nfcTagRepository.save(
             NfcTag.builder()
-                    .organizationId(1L)
-                    .uid("TAG-001").
-                    name("A반 태그").
-                    status(NfcTagStatus.ACTIVE).
-                    build());
+                .organizationId(1L)
+                .uid("TAG-001")
+                .name("A반 태그")
+                .status(NfcTagStatus.ACTIVE)
+                .build());
     AttendanceSession session =
         sessionRepository.save(
             AttendanceSession.builder()
@@ -219,11 +219,11 @@ class AttendanceFlowIntegrationTest {
     NfcTag tag =
         nfcTagRepository.save(
             NfcTag.builder()
-                    .organizationId(1L)
-                    .uid("TAG-002")
-                    .name("공용 태그")
-                    .status(NfcTagStatus.ACTIVE)
-                    .build());
+                .organizationId(1L)
+                .uid("TAG-002")
+                .name("공용 태그")
+                .status(NfcTagStatus.ACTIVE)
+                .build());
     // sessionA는 별도로 참조하지 않고, 같은 태그를 쓰는 다른 ACTIVE 세션이 존재하는 상황만 만들면 됨
     sessionRepository.save(
         AttendanceSession.builder()

@@ -35,6 +35,7 @@ Closes #
 
 - [ ] `./gradlew test`
 - [ ] `./gradlew build`
+- [ ] `./graldew spotlessApply` (포맷팅 위반 없음 확인)
 - [ ] API 요청/응답 확인
 - [ ] DB 변경 사항 확인
 - [ ] 예외 케이스 확인
