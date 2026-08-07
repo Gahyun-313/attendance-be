@@ -1,5 +1,6 @@
 package com.attendance.domain.statistics.controller;
 
+import com.attendance.domain.statistics.dto.AttendanceRankingResponse;
 import com.attendance.domain.statistics.dto.DashboardStatisticsResponse;
 import com.attendance.domain.statistics.dto.OverallStatisticsResponse;
 import com.attendance.domain.statistics.dto.UserStatisticsResponse;
@@ -10,10 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * 통계 API Controller - 세션별 통계는 별도 엔드포인트를 만들지 않고 기존 GET
@@ -44,6 +42,18 @@ public class StatisticsController {
     DashboardStatisticsResponse response =
         statisticsService.getDashboardStatistics(userDetails.getOrganizationId());
     return ResponseEntity.ok(ApiResponse.success(response, "대시보드 통계 조회 성공"));
+  }
+
+  /** 출석률 상하위 랭킹 GET /api/statistics/ranking - ADMIN 전용 */
+  @PreAuthorize("hasRole('ADMIN')")
+  @GetMapping("/ranking")
+  // limit: 상/하위 몇 명씩 보여줄지 (기본겂 5, 1~50으로 clamp됨)
+  public ResponseEntity<ApiResponse<AttendanceRankingResponse>> getAttendanceRanking(
+          @RequestParam(defaultValue = "5") int limit,
+          @AuthenticationPrincipal CustomUserDetails userDetails) {
+    AttendanceRankingResponse response =
+            statisticsService.getAttendanceRanking(userDetails.getOrganizationId(), limit);
+    return ResponseEntity.ok(ApiResponse.success(response, "출석률 랭킹 조회 성공"));
   }
 
   /** 특정 사용자 통계 GET /api/statistics/users/{userId} - ADMIN 전용 */
