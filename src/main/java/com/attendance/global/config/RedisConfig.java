@@ -25,6 +25,7 @@ public class RedisConfig {
   public static final String CACHE_OVERALL_STATISTICS = "overallStatistics";
   public static final String CACHE_DASHBOARD_STATISTICS = "dashboardStatistics";
   public static final String CACHE_USER_DASHBOARD = "userDashboard";
+  public static final String CACHE_ATTENDACNE_RANKING = "attendanceRanking";
 
   @Bean
   public RedisCacheManagerBuilderCustomizer redisCacheManagerBuilderCustomizer() {
@@ -40,7 +41,10 @@ public class RedisConfig {
                 CACHE_DASHBOARD_STATISTICS, defaultConfig().entryTtl(Duration.ofMinutes(1)))
             //사용자 대시보드도 누적 스냅샷 성격이라 동일하게 TTL 1분으로 둔다
             .withCacheConfiguration(
-                    CACHE_USER_DASHBOARD, defaultConfig().entryTtl(Duration.ofMinutes(1)));
+                    CACHE_USER_DASHBOARD, defaultConfig().entryTtl(Duration.ofMinutes(1)))
+            // 랭킹은 학생 수만큼 반복 쿼리가 나가는 무거운 집계라서 캐싱 효과가 큼 TTL 1분
+            .withCacheConfiguration(
+                    CACHE_ATTENDACNE_RANKING, defaultConfig().entryTtl(Duration.ofMinutes(1)));
   }
 
   /** 캐시 값 직렬화 방식 공통 설정 */
