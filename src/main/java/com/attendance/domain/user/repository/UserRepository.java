@@ -140,16 +140,23 @@ public interface UserRepository extends JpaRepository<User, Long> {
   long countByRoleAndOrganizationIdAndActive(UserRole role, Long organizationId, boolean activate);
 
   /**
-   * 역할+단체별 + 생성일시 구간 내 사용자 수 - 사용자 대시보드의 "이번 달 신규 대상자 수" 집계용
+   * 역할 + 단체별 + 생성일시 구간 내 사용자 수 - 사용자 대시보드의 "이번 달 신규 대상자 수" 집계용
    * (start~end는 Service에서 이번 달 1일 00:00 ~ 현재 시각으로 계산해 전달)
    */
   long countByRoleAndOrganizationIdAndCreatedAtBetween(
           UserRole role, Long organizationId, LocalDateTime start, LocalDateTime end);
 
   /**
-   * 역할 + 그룹명 + 단체별 사용자 수 - StatisticsService의 그룹별 출석률 집계(calculateGroupAttendanceRates)를 단체 범위로 한정할 때
-   * 사용 (위 countByRoleAndGroupName의 단체 격리 버전 - AttendanceService.getSessionDashboard도 기존 메서드를 그대로 쓰고
-   * 있어 시그니처를 안 바꾸고 오버로드로 추가함)
+   * 역할 + 단체별 사용자 전체 조회 (페이징 없음)
+   * - 출석률 랭킹 (GET /api/statistics/ranking) 집계 시 단체 소속 학생 전원을 순회하기 위해 사용
+   * - countByRoleAndOrganizationId의 목록 버전
+   */
+  List<User> findByRoleAndOrganizationId(UserRole role, Long organizationId);
+
+  /**
+   * 역할 + 그룹명 + 단체별 사용자 수 - StatisticsService의 그룹별 출석률 집계(calculateGroupAttendanceRates)를 단체 범위로 한정할 때 사용
+   * - countByRoleAndGroupName의 단체 격리 버전
+   * - AttendanceService.getSessionDashboard도 기존 메서드를 그대로 쓰고 있어 시그니처를 안 바꾸고 오버로드로 추가함
    */
   long countByRoleAndGroupNameAndOrganizationId(
       UserRole role, String groupName, Long organizationId);
