@@ -19,6 +19,7 @@ import com.attendance.domain.attendance.repository.AttendanceRepository;
 import com.attendance.domain.nfc.entity.NfcTag;
 import com.attendance.domain.nfc.entity.NfcTagStatus;
 import com.attendance.domain.nfc.repository.NfcTagRepository;
+import com.attendance.domain.organization.repository.OrganizationRepository;
 import com.attendance.domain.session.entity.AttendanceSession;
 import com.attendance.domain.session.repository.SessionRepository;
 import com.attendance.domain.user.entity.User;
@@ -69,6 +70,10 @@ class AttendanceServiceTest {
   @Mock private SessionRepository sessionRepository;
   @Mock private NfcTagRepository nfcTagRepository;
   @Mock private UserRepository userRepository;
+  // AttendanceService가 checkIn()에서 단체의 nfcLocationValidationEnabled 설정을 조회하므로 필요.
+  // 스텁 없이 두면 Mockito가 기본으로 Optional.empty()를 반환해 "검증 꺼짐"으로 처리되어 기존
+  // 테스트 흐름에는 영향 없음 (activeSession() 헬퍼가 organizationId/location을 안 채우기도 함)
+  @Mock private OrganizationRepository organizationRepository;
   // 아래 둘은 AttendanceService 생성자에는 필요하지만 이 테스트들이 직접 검증하는 대상은 아님
   // (Mockito @InjectMocks는 생성자 인자 중 매칭되는 @Mock이 없으면 null을 채워 넣는데, 그러면
   //  checkIn()의 eventPublisher.publishEvent(...) / evict() 호출부에서 NPE가 난다 - 그래서 목만 만들어 채워줌)
