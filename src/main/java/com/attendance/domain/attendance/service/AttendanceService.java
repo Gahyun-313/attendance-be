@@ -1,5 +1,6 @@
 package com.attendance.domain.attendance.service;
 
+// attendance
 import com.attendance.domain.attendance.dto.AttendanceDashboardResponse;
 import com.attendance.domain.attendance.dto.AttendanceResponse;
 import com.attendance.domain.attendance.dto.AttendanceStatusUpdateRequest;
@@ -8,13 +9,20 @@ import com.attendance.domain.attendance.entity.AttendanceRecord;
 import com.attendance.domain.attendance.entity.AttendanceStatus;
 import com.attendance.domain.attendance.event.AttendanceCheckedInEvent;
 import com.attendance.domain.attendance.repository.AttendanceRepository;
+// nfc
 import com.attendance.domain.nfc.entity.NfcTag;
 import com.attendance.domain.nfc.repository.NfcTagRepository;
+// organization
+import com.attendance.domain.organization.entity.Organization;
+import com.attendance.domain.organization.repository.OrganizationRepository;
+// session
 import com.attendance.domain.session.entity.AttendanceSession;
 import com.attendance.domain.session.repository.SessionRepository;
+// user
 import com.attendance.domain.user.entity.User;
 import com.attendance.domain.user.entity.UserRole;
 import com.attendance.domain.user.repository.UserRepository;
+// global
 import com.attendance.global.config.RedisConfig;
 import com.attendance.global.exception.BusinessException;
 import com.attendance.global.exception.DuplicateException;
@@ -54,8 +62,11 @@ public class AttendanceService {
   private final SessionRepository sessionRepository;
   private final NfcTagRepository nfcTagRepository;
   private final UserRepository userRepository;
+  private final OrganizationRepository organizationRepository;
+
   private final ApplicationEventPublisher eventPublisher; // 체크인 완료 후 실시간 푸시 트리거용
   private final CacheManager cacheManager; // 세션 대시보드 캐시(sessionDashboard)를 수동으로 비우는 데 사용
+
   // 동시 체크인 경합 방지용 분산 락. RedisConfig처럼 별도 Config 클래스가 없는 이유:
   // redisson-spring-boot-starter는 의존성만 추가하면 application-local.yml의 spring.data.redis.host/port를
   // 그대로 읽어서 RedissonClient 빈을 자동으로 만들어준다 - 직접 @Bean으로 만들 필요가 없다.
@@ -90,6 +101,10 @@ public class AttendanceService {
         sessionRepository.findActiveSessionsByNfcTagId(nfcTag.getId()).stream()
             .findFirst()
             .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_ACTIVE));
+
+    // 2-1. NFC 태그 위치 검증 (단체 설정에서 켠 경우)
+    //      세션에 등록된 location과 태그 location이 다르면 체크인 차단
+    validateNfcLocationIfEnabled(session, nfcTag);
 
     // 3. 출석/지각 판정 - session.isLate() 기준
     LocalDateTime checkInTime = LocalDateTime.now();
@@ -129,8 +144,31 @@ public class AttendanceService {
   }
 
   /**
+   * Nfc 태그 위치 검증 - 단체 설정(Organization.nfcLocationValidationEnabled)이 켜져 있을 때만 세션에 등록된 location과
+   * 체크인에 사용된 NFC 태그의 location이 일치하는지 확인한다. 둘 중 하나라도 비어있으면 통과시킨다.
+   */
+  private void validateNfcLocationIfEnabled(AttendanceSession session, NfcTag nfcTag) {
+    boolean enabled =
+        organizationRepository
+            .findById(session.getOrganizationId())
+            .map(Organization::getNfcLocationValidationEnabled)
+            .orElse(false);
+    if (!enabled) {
+      return;
+    }
+    String sessionLocation = session.getLocation();
+    String tagLocation = nfcTag.getLocation();
+    if (sessionLocation == null || tagLocation == null) {
+      return;
+    }
+    if (!sessionLocation.equals(tagLocation)) {
+      throw new BusinessException(ErrorCode.LOCATION_MISMATCH);
+    }
+  }
+
+  /**
    * checkIn()의 "기존 레코드 조회 → 저장/갱신" 구간을 Redisson 분산 락으로 감싼 헬퍼. 락 키를 사용자+세션 단위로 잡아서, 같은 사람이 같은 세션에 짧은
-   * 시간 안에 여러 번 요청을 보내도(중복 클릭, 앱 재시도, 네트워크 재전송 등) 이 구간은 한 번에 한 스레드만 통과한다.
+   * 시간 안에 여러 번 요청을 보내도 (중복 클릭, 앱 재시도, 네트워크 재전송 등) 이 구간은 한 번에 한 스레드만 통과한다.
    */
   // SonarLint(java:S2222)는 이 메서드 안에서 try/finally로 unlock()이 바로 보이지 않는다는 이유로
   // "락이 모든 실행 경로에서 해제되지 않을 수 있다"고 경고하지만, 실제로는 아래 releaseLockAfterTransaction()
