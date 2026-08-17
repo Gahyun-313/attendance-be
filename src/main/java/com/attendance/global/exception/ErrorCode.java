@@ -46,6 +46,7 @@ public enum ErrorCode {
   DUPLICATE_ATTENDANCE(HttpStatus.CONFLICT, "AT002", "이미 출석 처리되었습니다"),
   ATTENDANCE_TIME_OVER(HttpStatus.BAD_REQUEST, "AT003", "출석 가능 시간이 아닙니다"),
   CHECKIN_IN_PROGRESS(HttpStatus.CONFLICT, "AT004", "이미 처리 중인 체크인 요청입니다. 잠시 후 다시 시도해주세요"),
+  LOCATION_MISMATCH(HttpStatus.BAD_REQUEST, "AT005", "체크인 위치가 세션 위치와 일치하지 않습니다"),
 
   // FCM 토큰
   FCM_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "F001", "FCM 토큰을 찾을 수 없습니다"),
@@ -61,7 +62,10 @@ public enum ErrorCode {
   OAUTH_VERIFICATION_FAILED(HttpStatus.UNAUTHORIZED, "O004", "소셜 로그인 인증에 실패했습니다"),
   EMAIL_VERIFICATION_EXPIRED(HttpStatus.BAD_REQUEST, "O005", "인증 코드가 만료되었거나 요청되지 않았습니다"),
   EMAIL_VERIFICATION_INVALID(HttpStatus.BAD_REQUEST, "O006", "인증 코드가 일치하지 않습니다"),
-  SOCIAL_ACCOUNT_NO_PASSWORD(HttpStatus.BAD_REQUEST, "O007", "소셜 로그인 전용 계정은 비밀번호 재설정 대상이 아닙니다");
+  SOCIAL_ACCOUNT_NO_PASSWORD(HttpStatus.BAD_REQUEST, "O007", "소셜 로그인 전용 계정은 비밀번호 재설정 대상이 아닙니다"),
+
+  // 단체
+  ORGANIZATION_NOT_FOUND(HttpStatus.NOT_FOUND, "0008", "단체 정보를 찾을 수 없습니다.");
 
   private final HttpStatus status;
   private final String code;
