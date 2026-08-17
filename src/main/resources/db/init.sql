@@ -16,6 +16,10 @@ CREATE TABLE IF NOT EXISTS organizations (
                                              name        VARCHAR(100)    NOT NULL,
                                              code        VARCHAR(50)     NOT NULL,           -- 소셜 로그인 셀프 조인용 초대 코드
                                              active      TINYINT(1)      NOT NULL DEFAULT 1,
+                                             auto_absent_enabled              TINYINT(1)  NOT NULL DEFAULT 1,   -- 결석 자동 처리
+                                             nfc_location_validation_enabled  TINYINT(1)  NOT NULL DEFAULT 0,   -- NFC 태그 위치 검증
+                                             default_attendance_grace_minutes INT         NOT NULL DEFAULT 5,   -- 기본 출석 인정 시간(분, 프리필용)
+                                             default_late_threshold_minutes   INT         NOT NULL DEFAULT 10,  -- 기본 지각 기준 시각(분, 프리필용)
                                              created_at  DATETIME        NOT NULL,
                                              updated_at  DATETIME        NOT NULL,
 
