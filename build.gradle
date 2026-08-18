@@ -36,6 +36,10 @@ dependencies {
 	// MySQL 드라이버
 	runtimeOnly 'com.mysql:mysql-connector-j'
 
+	// DB 마이그레이션 (Flyway)
+	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-mysql'
+
 	// 보일러플레이트 코드 자동 생성 (getter, setter 등)
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
