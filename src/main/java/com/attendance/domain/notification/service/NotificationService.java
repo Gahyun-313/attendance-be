@@ -1,6 +1,9 @@
 package com.attendance.domain.notification.service;
 
+import com.attendance.domain.fcm.entity.FcmToken;
 import com.attendance.domain.fcm.repository.FcmTokenRepository;
+import com.attendance.domain.fcm.service.FcmSender;
+import com.attendance.domain.fcm.service.FcmSender.FcmSendResult;
 import com.attendance.domain.notification.dto.NotificationRequest;
 import com.attendance.domain.notification.dto.NotificationResponse;
 import com.attendance.domain.notification.entity.Notification;
@@ -19,7 +22,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 알림 비즈니스 로직 처리 */
+/** 알림 비즈니스 로직 */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -28,10 +31,12 @@ public class NotificationService {
   private final NotificationRepository notificationRepository;
   private final UserRepository userRepository;
   private final FcmTokenRepository fcmTokenRepository;
+  private final FcmSender fcmSender;
 
   /**
-   * 알림 생성(ADMIN) 저장 직후 발송 대상 시각(scheduledAt)이 지금이거나 없으면 바로 dispatch까지 수행한다. 미래 예약이면 SCHEDULED 상태로만
-   * 남으며, 자동 발송 스케줄러는 아직 없다(추후 배치 도입 시 이어붙일 예정).
+   * 알림 생성 (ADMIN) - 저장 직후 발송 대상 시각(scheduledAt)이 지금이거나 없으면 바로 발송 처리(dispatch)까지 수행한다. - 미래 시각으로 예약된
+   * 경우 SCHEDULED 상태로만 남고, 실제로 그 시각에 자동 발송해주는 스케줄러는 아직 없다 (추후 Day 6 이후 배치/스케줄러 도입 시점에 "SCHEDULED이면서
+   * scheduledAt이 지난 알림"을 찾아 dispatch하는 방식으로 이어붙일 예정)
    */
   @Transactional
   public NotificationResponse createNotification(NotificationRequest request, Long adminUserId) {
@@ -43,8 +48,9 @@ public class NotificationService {
   }
 
   /**
-   * 알림 목록 조회 ADMIN은 상태 필터(선택)를 포함해 전체를 조회한다. STUDENT는 본인 그룹(또는 전체발송)이면서 SENT인 알림만 "내 알림함"으로 조회하며,
-   * status 파라미터는 무시하고 예약/실패/취소 상태 노출을 막기 위해 항상 SENT로 고정한다.
+   * 알림 목록 조회 - ADMIN: 전체 알림을 상태 필터(선택)와 함께 조회 (알림 관리 화면용) - STUDENT: 본인 그룹(또는 전체발송) 대상 + 발송완료(SENT)
+   * 알림만 조회 ("내 알림함") - 요청받은 status 파라미터는 무시하고 항상 SENT로 강제한다. 다른 그룹 대상이거나 예약/실패/취소 상태인 알림이 노출되면 안 되기
+   * 때문
    */
   public Page<NotificationResponse> getNotifications(
       String role, String groupName, NotificationStatus status, Pageable pageable) {
@@ -60,39 +66,51 @@ public class NotificationService {
         .map(NotificationResponse::from);
   }
 
-  /** 알림 취소(ADMIN). 아직 발송되지 않은(SCHEDULED) 알림만 취소할 수 있다. */
+  /** 알림 취소 (ADMIN) - 아직 발송되지 않은(SCHEDULED) 알림만 취소 가능 */
   @Transactional
   public void cancelNotification(Long notificationId) {
     Notification notification =
         notificationRepository
             .findById(notificationId)
             .orElseThrow(() -> new EntityNotFoundException(ErrorCode.NOTIFICATION_NOT_FOUND));
-    notification.cancel(); // SCHEDULED가 아니면 NOTIFICATION_ALREADY_PROCESSED 예외를 던진다.
+    notification.cancel(); // SCHEDULED가 아니면 NOTIFICATION_ALREADY_PROCESSED 예외
   }
 
-  /**
-   * 알림 발송 처리 실제 FCM 푸시 발송은 firebase-admin 의존성이 비활성화 상태라 아직 구현하지 않았고, 대상 학생들의 FCM 토큰 등록 여부만 확인해
-   * SENT/FAILED로 전이시킨다.
-   */
+  /** 알림 발송 처리 FCM 발송 후 무효 토큰을 함께 삭제한다. */
   private void dispatch(Notification notification) {
-    // 대상 그룹이 지정돼 있으면 해당 그룹만, 없으면 전체 학생을 대상으로 한다.
+    // 대상 학생 조회
     List<User> targets =
         notification.getTargetGroup() != null
             ? userRepository.findByRoleAndGroupName(UserRole.STUDENT, notification.getTargetGroup())
             : userRepository.findByRole(UserRole.STUDENT);
 
-    // 대상 전체 FCM 토큰 등록 개수 합산
-    int tokenCount =
+    // 대상자 FCM 토큰 전체 수집
+    List<FcmToken> fcmTokens =
         targets.stream()
-            .mapToInt(user -> fcmTokenRepository.findAllByUserId(user.getId()).size())
-            .sum();
+            .flatMap(user -> fcmTokenRepository.findAllByUserId(user.getId()).stream())
+            .toList();
 
-    if (tokenCount == 0) {
+    if (fcmTokens.isEmpty()) {
       notification.markFailed();
       return;
     }
 
-    // TODO(Phase 4 후속): firebase-admin 활성화 후 실제 발송 호출로 교체한다.
-    notification.markSent(tokenCount);
+    // FCM 발송
+    List<String> tokens = fcmTokens.stream().map(FcmToken::getToken).toList();
+    FcmSendResult result =
+        fcmSender.send(tokens, notification.getTitle(), notification.getContent());
+
+    // 무효 토큰 삭제 (앱 재설치/로그아웃 등으로 죽은 토큰이 쌓이는 것 방지)
+    result
+        .invalidTokens()
+        .forEach(
+            token -> fcmTokenRepository.findByToken(token).ifPresent(fcmTokenRepository::delete));
+
+    // 발송 결과에 따라 상태 전이
+    if (result.successCount() == 0) {
+      notification.markFailed();
+    } else {
+      notification.markSent(result.successCount());
+    }
   }
 }
