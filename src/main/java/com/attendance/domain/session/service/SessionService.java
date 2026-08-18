@@ -96,9 +96,8 @@ public class SessionService {
   }
 
   /**
-   * 세션 시작(SCHEDULED -> ACTIVE)
-   * 같은 NFC 태그를 쓰는 다른 세션이 이미 ACTIVE면, 체크인 시 태그로 세션을 역추적하는 게 모호해지므로 시작을 막는다.
-   * 세션을 시작한 뒤 대상 그룹 학생 전원에게 WAITING 레코드 미리 생성
+   * 세션 시작(SCHEDULED -> ACTIVE) 같은 NFC 태그를 쓰는 다른 세션이 이미 ACTIVE면, 체크인 시 태그로 세션을 역추적하는 게 모호해지므로 시작을
+   * 막는다. 세션을 시작한 뒤 대상 그룹 학생 전원에게 WAITING 레코드 미리 생성
    */
   @Transactional
   public SessionResponse startSession(Long sessionId, Long organizationId) {

@@ -46,8 +46,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
       @Param("role") UserRole role, @Param("keyword") String keyword, Pageable pageable);
 
   /**
-   * 그룹/키워드로 학생 목록 검색(ADMIN).
-   * groupName과 keyword는 선택값이라 null이면 조건에서 제외하고, organizationId로 단체를 격리한다.
+   * 그룹/키워드로 학생 목록 검색(ADMIN). groupName과 keyword는 선택값이라 null이면 조건에서 제외하고, organizationId로 단체를 격리한다.
    */
   @Query(
       "SELECT u FROM User u WHERE u.role = :role AND u.organizationId = :organizationId "

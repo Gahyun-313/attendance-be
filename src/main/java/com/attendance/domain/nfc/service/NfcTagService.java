@@ -107,7 +107,10 @@ public class NfcTagService {
     return nfcTagRepository.findByUid(uid).map(NfcTag::isActive).orElse(false);
   }
 
-  /** ID와 organizationId로 NFC 태그를 조회한다. 다른 단체 소속이면 404로 존재 자체를 숨긴다(UserService/SessionService와 동일 패턴). */
+  /**
+   * ID와 organizationId로 NFC 태그를 조회한다. 다른 단체 소속이면 404로 존재 자체를 숨긴다(UserService/SessionService와 동일
+   * 패턴).
+   */
   private NfcTag findNfcTagByIdAndOrganization(Long id, Long organizationId) {
     NfcTag nfcTag =
         nfcTagRepository

@@ -18,9 +18,8 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 /**
- * 이메일 인증 코드 발급/검증. 소셜 로그인이 막힌 환경을 대비한 대체 조인 경로다.
- * 코드는 DB가 아닌 Redis에 TTL(5분)로 저장해 배치/스케줄러 없이 자동 만료시킨다. 값에 organizationId도
- * 같이 담아, 검증 시 이메일+코드만으로 organizationId를 바로 얻을 수 있게 한다.
+ * 이메일 인증 코드 발급/검증. 소셜 로그인이 막힌 환경을 대비한 대체 조인 경로다. 코드는 DB가 아닌 Redis에 TTL(5분)로 저장해 배치/스케줄러 없이 자동
+ * 만료시킨다. 값에 organizationId도 같이 담아, 검증 시 이메일+코드만으로 organizationId를 바로 얻을 수 있게 한다.
  */
 @Slf4j
 @Service

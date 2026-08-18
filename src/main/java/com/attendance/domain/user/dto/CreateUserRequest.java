@@ -44,7 +44,9 @@ public class CreateUserRequest {
   @Size(max = 500, message = "비고는 500자를 초과할 수 없습니다")
   private String note;
 
-  /** Request DTO를 User 엔티티로 변환한다. role은 항상 STUDENT로 고정하고, organizationId는 파라미터로 받아 다른 단체 지정을 막는다. */
+  /**
+   * Request DTO를 User 엔티티로 변환한다. role은 항상 STUDENT로 고정하고, organizationId는 파라미터로 받아 다른 단체 지정을 막는다.
+   */
   public User toEntity(String encodedPassword, Long organizationId) {
     return User.builder()
         .username(username)

@@ -12,10 +12,8 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * 출석 체크인 이벤트를 받아 WebSocket으로 실시간 푸시하는 리스너
- * AFTER_COMMIT에서만 실행하는 이유는, 일반 {@code @EventListener}를 쓰면 checkIn() 트랜잭션이
- * 아직 커밋 전이거나 롤백될 수도 있는 시점에 실행돼, 실제 DB엔 반영되지 않은 "체크인 성공" 푸시를
- * 보낼 위험이 있기 때문이다.
+ * 출석 체크인 이벤트를 받아 WebSocket으로 실시간 푸시하는 리스너 AFTER_COMMIT에서만 실행하는 이유는, 일반 {@code @EventListener}를 쓰면
+ * checkIn() 트랜잭션이 아직 커밋 전이거나 롤백될 수도 있는 시점에 실행돼, 실제 DB엔 반영되지 않은 "체크인 성공" 푸시를 보낼 위험이 있기 때문이다.
  */
 @Slf4j
 @Component

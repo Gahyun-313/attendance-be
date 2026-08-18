@@ -38,7 +38,10 @@ public class NotificationController {
         .body(ApiResponse.success(response, "알림이 생성되었습니다"));
   }
 
-  /** 알림 목록 조회. ADMIN은 전체 알림을 status 필터(선택)로 조회하고, STUDENT는 본인 그룹(또는 전체발송) 대상의 발송완료 알림만 조회하며 이때 status 파라미터는 무시된다. */
+  /**
+   * 알림 목록 조회. ADMIN은 전체 알림을 status 필터(선택)로 조회하고, STUDENT는 본인 그룹(또는 전체발송) 대상의 발송완료 알림만 조회하며 이때
+   * status 파라미터는 무시된다.
+   */
   @GetMapping
   public ResponseEntity<ApiResponse<Page<NotificationResponse>>> getNotifications(
       @AuthenticationPrincipal CustomUserDetails userDetails,

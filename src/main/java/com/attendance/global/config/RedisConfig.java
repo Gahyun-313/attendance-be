@@ -11,9 +11,8 @@ import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 /**
- * Redis 캐시 설정
- * StatisticsService의 통계 조회는 매번 count 쿼리 여러 개를 다시 실행하는데, 관리자 대시보드는
- * 자주 재조회되므로 결과를 잠깐 캐싱해 재사용한다.
+ * Redis 캐시 설정 StatisticsService의 통계 조회는 매번 count 쿼리 여러 개를 다시 실행하는데, 관리자 대시보드는 자주 재조회되므로 결과를 잠깐 캐싱해
+ * 재사용한다.
  */
 @Configuration
 @EnableCaching // 이 어노테이션이 있어야 @Cacheable/@CacheEvict 같은 캐시 어노테이션이 실제로 동작한다.

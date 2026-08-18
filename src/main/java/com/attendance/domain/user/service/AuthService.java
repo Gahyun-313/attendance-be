@@ -60,9 +60,8 @@ public class AuthService {
   }
 
   /**
-   * 소셜 로그인 처리(구글/카카오, provider는 "google"/"kakao" 대소문자 무관)
-   * 제공자 토큰으로 사용자를 조회해 연결된 계정이 있으면 로그인시키고, 없으면 organizationCode로
-   * 단체를 확인한 뒤 신규 ADMIN 계정을 생성한다(셀프 조인). 최초 단체/최초 어드민은 운영자가 수동 생성한다.
+   * 소셜 로그인 처리(구글/카카오, provider는 "google"/"kakao" 대소문자 무관) 제공자 토큰으로 사용자를 조회해 연결된 계정이 있으면 로그인시키고, 없으면
+   * organizationCode로 단체를 확인한 뒤 신규 ADMIN 계정을 생성한다(셀프 조인). 최초 단체/최초 어드민은 운영자가 수동 생성한다.
    */
   @Transactional
   public AuthResponse oauthLogin(String provider, OAuthLoginRequest request) {

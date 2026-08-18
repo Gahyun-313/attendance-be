@@ -14,10 +14,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * FCM 토큰 관리 API 제공
- * 로그인만 하면 STUDENT/ADMIN 구분 없이 누구나 호출할 수 있다(SecurityConfig에 따로 등록하지 않아도
- * anyRequest().authenticated()로 "로그인 필요"가 자동 적용된다). userId는 위조를 막기 위해 요청 바디로
- * 받지 않고 JWT 인증 정보(@AuthenticationPrincipal)에서 꺼낸다.
+ * FCM 토큰 관리 API 제공 로그인만 하면 STUDENT/ADMIN 구분 없이 누구나 호출할 수 있다(SecurityConfig에 따로 등록하지 않아도
+ * anyRequest().authenticated()로 "로그인 필요"가 자동 적용된다). userId는 위조를 막기 위해 요청 바디로 받지 않고 JWT 인증
+ * 정보(@AuthenticationPrincipal)에서 꺼낸다.
  */
 @RestController
 @RequestMapping("/api/fcm/tokens")

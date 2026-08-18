@@ -12,10 +12,9 @@ import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.stereotype.Component;
 
 /**
- * STOMP 메시지(SUBSCRIBE 등) 인가.
- * StompHandshakeInterceptor가 "연결"을 인증한다면, 이 인터셉터는 "무엇을 구독할 수 있는지"를 인가한다
- * (예: /topic/attendance/**는 ADMIN만 구독 허용). role은 새로 조회하지 않고, 핸드셰이크 시점에
- * 세션 attributes에 저장해둔 값을 그대로 사용한다.
+ * STOMP 메시지(SUBSCRIBE 등) 인가. StompHandshakeInterceptor가 "연결"을 인증한다면, 이 인터셉터는 "무엇을 구독할 수 있는지"를 인가한다
+ * (예: /topic/attendance/**는 ADMIN만 구독 허용). role은 새로 조회하지 않고, 핸드셰이크 시점에 세션 attributes에 저장해둔 값을 그대로
+ * 사용한다.
  */
 @Slf4j
 @Component

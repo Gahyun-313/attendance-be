@@ -63,7 +63,10 @@ public class UserController {
     return ResponseEntity.ok(ApiResponse.success(response, "그룹 목록 조회 성공"));
   }
 
-  /** 사용자 대시보드 조회(ADMIN 전용). 전체/활성 사용자 수, 출석 현황, 신규 대상자 수 등 요약 카드를 반환하며, 고정 경로라 GET /{userId}와 겹치지 않는다. */
+  /**
+   * 사용자 대시보드 조회(ADMIN 전용). 전체/활성 사용자 수, 출석 현황, 신규 대상자 수 등 요약 카드를 반환하며, 고정 경로라 GET /{userId}와 겹치지
+   * 않는다.
+   */
   @PreAuthorize("hasRole('ADMIN')")
   @GetMapping("/dashboard")
   public ResponseEntity<ApiResponse<UserDashboardResponse>> getUserDashboard(

@@ -42,9 +42,8 @@ public class StatisticsService {
   private final AttendanceService attendanceService;
 
   /**
-   * 전체 통계 조회(ADMIN)
-   * 학생 수, 세션 수, 상태별 출석 건수를 시스템 전체 기준으로 집계
-   * count 쿼리를 매번 실행하는 대신 organizationId 기준으로 1분간 캐싱한다.
+   * 전체 통계 조회(ADMIN) 학생 수, 세션 수, 상태별 출석 건수를 시스템 전체 기준으로 집계 count 쿼리를 매번 실행하는 대신 organizationId 기준으로
+   * 1분간 캐싱한다.
    */
   @Cacheable(cacheNames = RedisConfig.CACHE_OVERALL_STATISTICS)
   public OverallStatisticsResponse getOverallStatistics(Long organizationId) {
@@ -74,9 +73,8 @@ public class StatisticsService {
   }
 
   /**
-   * 대시보드 통계 조회(ADMIN)
-   * 오늘 세션 수, 활성 세션 수, 최근 출석률, 그룹별 출석률을 집계
-   * 그룹별 집계가 그룹x세션 수만큼 쿼리를 반복하는 가장 무거운 조회라 1분간 캐싱한다.
+   * 대시보드 통계 조회(ADMIN) 오늘 세션 수, 활성 세션 수, 최근 출석률, 그룹별 출석률을 집계 그룹별 집계가 그룹x세션 수만큼 쿼리를 반복하는 가장 무거운 조회라
+   * 1분간 캐싱한다.
    */
   @Cacheable(cacheNames = RedisConfig.CACHE_DASHBOARD_STATISTICS)
   public DashboardStatisticsResponse getDashboardStatistics(Long organizationId) {
@@ -101,11 +99,7 @@ public class StatisticsService {
         .build();
   }
 
-  /**
-   * 출석률 상/하위 랭킹 조회(ADMIN)
-   * 학생별 누적 출석률을 계산해 상위/하위 N명을 추출
-   * 학생 수만큼 쿼리를 반복하는 무거운 집계라 1분간 캐싱한다.
-   */
+  /** 출석률 상/하위 랭킹 조회(ADMIN) 학생별 누적 출석률을 계산해 상위/하위 N명을 추출 학생 수만큼 쿼리를 반복하는 무거운 집계라 1분간 캐싱한다. */
   @Cacheable(cacheNames = RedisConfig.CACHE_ATTENDACNE_RANKING)
   public AttendanceRankingResponse getAttendanceRanking(Long organizationId, int limit) {
     int safeLimit = Math.max(RANKING_MIN_LIMIT, Math.min(limit, RANKING_MAX_LIMIT));
