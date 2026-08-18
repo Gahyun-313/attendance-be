@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import lombok.*;
 
-/** Refresh Token 엔티티 JWT Access Token이 만료되었을 때 새로 발급받기 위한 토큰 서버에 저장하여 보안을 강화하고 로그아웃 시 무효화 가능 */
+/** Refresh Token 엔티티. Access Token이 만료됐을 때 새로 발급받기 위한 토큰을 서버에 저장해 보안을 강화하고, 로그아웃 시 무효화할 수 있게 한다. */
 @Entity
 @Table(name = "refresh_tokens")
 @Getter
@@ -22,7 +22,7 @@ public class RefreshToken {
   @Column(nullable = false, unique = true, length = 500)
   private String token;
 
-  // 이 토큰의 소유자 (User ID)
+  // 이 토큰의 소유자(User ID)
   @Column(name = "user_id", nullable = false)
   private Long userId;
 
@@ -39,11 +39,7 @@ public class RefreshToken {
     createdAt = LocalDateTime.now();
   }
 
-  /**
-   * 토큰이 만료되었는지 확인
-   *
-   * @return true: 만료됨, false: 유효함
-   */
+  /** 토큰이 만료되었는지 확인 */
   public boolean isExpired() {
     return LocalDateTime.now().isAfter(expiresAt);
   }

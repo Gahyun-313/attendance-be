@@ -10,24 +10,24 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/** 학생 계정 생성 요청 DTO - ADMIN이 학생 계정을 생성할 때 사용 */
+/** 학생 계정 생성 요청 DTO. ADMIN이 학생 계정을 생성할 때 사용한다. */
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateUserRequest {
 
-  // 학번 (= username, 로그인 ID로 사용)
+  // 학번(= username, 로그인 ID로 사용)
   @NotBlank(message = "학번은 필수입니다")
   @Size(min = 4, max = 20, message = "학번은 4자 이상 20자 이하여야 합니다")
   @Pattern(regexp = "^\\w+$", message = "학번은 영문, 숫자, 언더스코어만 사용 가능합니다")
   private String username;
 
-  // 초기 비밀번호 - 관리자가 지정, 학생은 최초 로그인 후 변경 권장
+  // 초기 비밀번호. 관리자가 지정하며, 학생은 최초 로그인 후 변경을 권장한다.
   @NotBlank(message = "비밀번호는 필수입니다")
   @Size(min = 8, message = "비밀번호는 8자 이상이어야 합니다")
   private String password;
 
-  // 이메일 (선택)
+  // 이메일(선택)
   @Email(message = "이메일 형식이 올바르지 않습니다")
   private String email;
 
@@ -36,19 +36,15 @@ public class CreateUserRequest {
   @Size(max = 50, message = "이름은 50자를 초과할 수 없습니다")
   private String name;
 
-  // 소속 그룹 (예: "A반", "1학년")
+  // 소속 그룹(예: "A반", "1학년")
   @Size(max = 100, message = "그룹명은 100자를 초과할 수 없습니다")
   private String groupName;
 
-  // 비고 - 관리자 메모
+  // 비고(관리자 메모)
   @Size(max = 500, message = "비고는 500자를 초과할 수 없습니다")
   private String note;
 
-  /**
-   * Request DTO를 User 엔티티로 변환 - role은 항상 STUDENT 고정
-   *
-   * @param organizationId 생성한 관리자가 속한 단체 ID - 클라이언트가 임의로 다른 단체를 지정할 수 없도록 요청 필드가 아닌 파라미터로 받는다
-   */
+  /** Request DTO를 User 엔티티로 변환한다. role은 항상 STUDENT로 고정하고, organizationId는 파라미터로 받아 다른 단체 지정을 막는다. */
   public User toEntity(String encodedPassword, Long organizationId) {
     return User.builder()
         .username(username)
@@ -57,7 +53,7 @@ public class CreateUserRequest {
         .name(name)
         .groupName(groupName)
         .note(note)
-        .role(UserRole.STUDENT) // 관리자가 생성하는 계정은 항상 학생
+        .role(UserRole.STUDENT) // 관리자가 생성하는 계정은 항상 학생이다.
         .organizationId(organizationId)
         .build();
   }

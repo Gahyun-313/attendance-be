@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 출석 기록 관리 API Controller */
+/** 출석 기록 관리 API 제공 */
 @RestController
 @RequestMapping("/api/attendances")
 @RequiredArgsConstructor
@@ -35,9 +35,7 @@ public class AttendanceController {
 
   private final AttendanceService attendanceService;
 
-  /**
-   * 출석 체크인 POST /api/attendances/check-in - STUDENT 전용, 요청 바디는 { nfcTagUid } (sessionId는 서버가 역추적)
-   */
+  /** 출석 체크인 처리(STUDENT 전용). 요청 바디는 nfcTagUid만 받고, sessionId는 서버가 역추적한다. */
   @PreAuthorize("hasRole('STUDENT')")
   @PostMapping("/check-in")
   public ResponseEntity<ApiResponse<AttendanceResponse>> checkIn(
@@ -48,10 +46,7 @@ public class AttendanceController {
         .body(ApiResponse.success(response, "출석이 완료되었습니다"));
   }
 
-  /**
-   * 내 출석 기록 조회 GET /api/attendances/me - STUDENT 전용, 기본 정렬: 체크인 시각 내림차순 - offset 페이징 (Day 5 Before
-   * / Day 6 cursor After 비교 포인트)
-   */
+  /** 내 출석 기록 조회(STUDENT 전용). 기본 정렬은 체크인 시각 내림차순이며 offset 페이징을 사용한다. */
   @PreAuthorize("hasRole('STUDENT')")
   @GetMapping("/me")
   public ResponseEntity<ApiResponse<Page<AttendanceResponse>>> getMyAttendances(
@@ -63,7 +58,7 @@ public class AttendanceController {
     return ResponseEntity.ok(ApiResponse.success(response, "내 출석 기록 조회 성공"));
   }
 
-  /** 세션별 출석 현황 조회 GET /api/attendances/sessions/{sessionId} - ADMIN 전용 */
+  /** 세션별 출석 현황 조회(ADMIN 전용) */
   @PreAuthorize("hasRole('ADMIN')")
   @GetMapping("/sessions/{sessionId}")
   public ResponseEntity<ApiResponse<List<AttendanceResponse>>> getSessionAttendances(
@@ -73,16 +68,14 @@ public class AttendanceController {
     return ResponseEntity.ok(ApiResponse.success(response, "세션별 출석 현황 조회 성공"));
   }
 
-  /**
-   * 출석 상태 수정 PUT /api/attendances/{attendanceId}/status - ADMIN 전용, modifiedBy는 인증된 관리자 이름으로 자동 기록
-   */
+  /** 출석 상태 수정(ADMIN 전용) */
   @PreAuthorize("hasRole('ADMIN')")
   @PutMapping("/{attendanceId}/status")
   public ResponseEntity<ApiResponse<AttendanceResponse>> updateAttendanceStatus(
       @PathVariable Long attendanceId,
       @Valid @RequestBody AttendanceStatusUpdateRequest request,
       @AuthenticationPrincipal CustomUserDetails userDetails) {
-    // modifiedBy는 요청 바디가 아니라 인증 주체(관리자 이름)에서 채움 - 위변조 방지
+    // modifiedBy는 요청 바디가 아니라 인증 주체(관리자 이름)에서 채워 위변조를 막는다.
     String modifiedBy = userDetails.getUser().getName();
     AttendanceResponse response =
         attendanceService.updateStatus(
@@ -90,7 +83,7 @@ public class AttendanceController {
     return ResponseEntity.ok(ApiResponse.success(response, "출석 상태가 수정되었습니다"));
   }
 
-  /** 출석 기록 삭제 DELETE /api/attendances/{attendanceId} - ADMIN 전용 */
+  /** 출석 기록 삭제(ADMIN 전용) */
   @PreAuthorize("hasRole('ADMIN')")
   @DeleteMapping("/{attendanceId}")
   public ResponseEntity<ApiResponse<Void>> deleteAttendance(
@@ -99,9 +92,7 @@ public class AttendanceController {
     return ResponseEntity.ok(ApiResponse.success("출석 기록이 삭제되었습니다"));
   }
 
-  /**
-   * 세션별 출석 대시보드 GET /api/attendances/sessions/{sessionId}/dashboard - ADMIN 전용, 상태별 레코드 수 + 출석률 집계
-   */
+  /** 세션별 출석 대시보드 조회(ADMIN 전용). 상태별 레코드 수와 출석률을 집계해 반환한다. */
   @PreAuthorize("hasRole('ADMIN')")
   @GetMapping("/sessions/{sessionId}/dashboard")
   public ResponseEntity<ApiResponse<AttendanceDashboardResponse>> getSessionDashboard(

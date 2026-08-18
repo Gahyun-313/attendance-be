@@ -21,7 +21,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-/** 사용자 관리 API Controller */
+/** 사용자 관리 API 제공 */
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -29,7 +29,7 @@ public class UserController {
 
   private final UserService userService;
 
-  /** 학생 계정 생성 POST /api/users - ADMIN 전용 - 기존 /api/auth/signup 이관 */
+  /** 학생 계정 생성(ADMIN 전용). 기존 /api/auth/signup에서 이관됐다. */
   @PreAuthorize("hasRole('ADMIN')")
   @PostMapping
   public ResponseEntity<ApiResponse<UserResponse>> createUser(
@@ -40,7 +40,7 @@ public class UserController {
         .body(ApiResponse.success(response, "학생 계정이 생성되었습니다"));
   }
 
-  /** 학생 목록 조회 GET /api/users - ADMIN 전용 - groupName: 그룹 필터링 (선택) - keyword: 학번/이름 검색 (선택) */
+  /** 학생 목록 조회(ADMIN 전용). groupName은 그룹 필터, keyword는 학번/이름 검색으로 둘 다 선택값이다. */
   @PreAuthorize("hasRole('ADMIN')")
   @GetMapping
   public ResponseEntity<ApiResponse<Page<UserResponse>>> getUsers(
@@ -54,10 +54,7 @@ public class UserController {
     return ResponseEntity.ok(ApiResponse.success(response, "사용자 목록 조회 성공"));
   }
 
-  /**
-   * 존재하는 그룹명 목록 조회 GET /api/users/groups - ADMIN 전용 - 세션 생성 시 그룹 선택 드롭다운 등에 활용 - 고정 경로 세그먼트라 GET
-   * /api/users/{userId}와 충돌 없음 (Spring이 더 구체적인 패턴을 우선 매칭)
-   */
+  /** 존재하는 그룹명 목록 조회(ADMIN 전용). 세션 생성 시 그룹 드롭다운 등에 사용하며, 고정 경로라 GET /{userId}와 겹치지 않는다. */
   @PreAuthorize("hasRole('ADMIN')")
   @GetMapping("/groups")
   public ResponseEntity<ApiResponse<List<String>>> getGroups(
@@ -66,10 +63,7 @@ public class UserController {
     return ResponseEntity.ok(ApiResponse.success(response, "그룹 목록 조회 성공"));
   }
 
-  /**
-   * 사용자 대시보드 GET /api/users/dashboard - ADMIN 전용 - 사용자 관리 화면 상단 요약 카드 (전체/활성 사용자 수, 평균 출석률, 이번 달 신규
-   * 대상자 수) - 고정 경로 세그먼트라서 GET /api/users/{userId}와 충돌 없음 (/groups와 동일 패턴)
-   */
+  /** 사용자 대시보드 조회(ADMIN 전용). 전체/활성 사용자 수, 출석 현황, 신규 대상자 수 등 요약 카드를 반환하며, 고정 경로라 GET /{userId}와 겹치지 않는다. */
   @PreAuthorize("hasRole('ADMIN')")
   @GetMapping("/dashboard")
   public ResponseEntity<ApiResponse<UserDashboardResponse>> getUserDashboard(
@@ -78,7 +72,7 @@ public class UserController {
     return ResponseEntity.ok(ApiResponse.success(response, "사용자 대시보드 조회 성공"));
   }
 
-  /** 사용자 상세 조회 GET /api/users/{userId} - ADMIN 전용 */
+  /** 사용자 상세 조회(ADMIN 전용) */
   @PreAuthorize("hasRole('ADMIN')")
   @GetMapping("/{userId}")
   public ResponseEntity<ApiResponse<UserResponse>> getUser(
@@ -87,7 +81,7 @@ public class UserController {
     return ResponseEntity.ok(ApiResponse.success(response, "사용자 조회 성공"));
   }
 
-  /** 사용자 정보 수정 PUT /api/users/{userId} - ADMIN 전용 */
+  /** 사용자 정보 수정(ADMIN 전용) */
   @PreAuthorize("hasRole('ADMIN')")
   @PutMapping("/{userId}")
   public ResponseEntity<ApiResponse<UserResponse>> updateUser(
@@ -99,7 +93,7 @@ public class UserController {
     return ResponseEntity.ok(ApiResponse.success(response, "사용자 정보가 수정되었습니다"));
   }
 
-  /** 사용자 삭제(비활성화) DELETE /api/users/{userId} - ADMIN 전용 - 연관 데이터 보존을 위해 물리 삭제가 아닌 비활성화 처리 */
+  /** 사용자 삭제(비활성화)(ADMIN 전용). 연관 데이터를 보존하기 위해 물리 삭제 대신 비활성화 처리한다. */
   @PreAuthorize("hasRole('ADMIN')")
   @DeleteMapping("/{userId}")
   public ResponseEntity<ApiResponse<Void>> deleteUser(
@@ -108,7 +102,7 @@ public class UserController {
     return ResponseEntity.ok(ApiResponse.success("사용자가 비활성화되었습니다"));
   }
 
-  /** 사용자 재활성화 POST /api/users/{userId}/activate - ADMIN 전용 - 비활성화된 사용자를 다시 활성 상태로 되돌림 */
+  /** 사용자 재활성화(ADMIN 전용). 비활성화된 사용자를 다시 활성 상태로 되돌린다. */
   @PreAuthorize("hasRole('ADMIN')")
   @PostMapping("/{userId}/activate")
   public ResponseEntity<ApiResponse<UserResponse>> activateUser(
@@ -117,7 +111,7 @@ public class UserController {
     return ResponseEntity.ok(ApiResponse.success(response, "사용자가 재활성화되었습니다"));
   }
 
-  /** 내 정보 조회 GET /api/users/me - 본인 전용 (STUDENT/ADMIN 공통) */
+  /** 내 정보 조회(본인 전용, STUDENT/ADMIN 공통) */
   @GetMapping("/me")
   public ResponseEntity<ApiResponse<UserResponse>> getMyInfo(
       @AuthenticationPrincipal CustomUserDetails userDetails) {
@@ -125,7 +119,7 @@ public class UserController {
     return ResponseEntity.ok(ApiResponse.success(response, "내 정보 조회 성공"));
   }
 
-  /** 비밀번호 변경 PATCH /api/users/me/password - 본인 전용 (STUDENT/ADMIN 공통) */
+  /** 비밀번호 변경(본인 전용, STUDENT/ADMIN 공통) */
   @PatchMapping("/me/password")
   public ResponseEntity<ApiResponse<Void>> changePassword(
       @AuthenticationPrincipal CustomUserDetails userDetails,

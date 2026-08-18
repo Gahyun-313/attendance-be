@@ -19,7 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-/** 출석 세션 관리 API Controller */
+/** 출석 세션 관리 API 제공 */
 @RestController
 @RequestMapping("/api/sessions")
 @RequiredArgsConstructor
@@ -27,7 +27,7 @@ public class SessionController {
 
   private final SessionService sessionService;
 
-  /** 세션 생성 POST /api/sessions - ADMIN 전용 */
+  /** 세션 생성(ADMIN 전용) */
   @PreAuthorize("hasRole('ADMIN')")
   @PostMapping
   public ResponseEntity<ApiResponse<SessionResponse>> createSession(
@@ -40,7 +40,7 @@ public class SessionController {
         .body(ApiResponse.success(response, "세션이 생성되었습니다"));
   }
 
-  /** 세션 목록 조회 GET /api/sessions - status: 상태별 필터링 (선택) - keyword: 세션명 검색 (선택) */
+  /** 세션 목록 조회. status(상태 필터)와 keyword(세션명 검색)는 둘 다 선택값이다. */
   @GetMapping
   public ResponseEntity<ApiResponse<Page<SessionResponse>>> getSessions(
       @RequestParam(required = false) SessionStatus status,
@@ -53,7 +53,7 @@ public class SessionController {
     return ResponseEntity.ok(ApiResponse.success(response, "세션 목록 조회 성공"));
   }
 
-  /** 세션 상세 조회 GET /api/sessions/{sessionId} */
+  /** 세션 상세 조회 */
   @GetMapping("/{sessionId}")
   public ResponseEntity<ApiResponse<SessionResponse>> getSession(
       @PathVariable Long sessionId, @AuthenticationPrincipal CustomUserDetails userDetails) {
@@ -62,7 +62,7 @@ public class SessionController {
     return ResponseEntity.ok(ApiResponse.success(response, "세션 조회 성공"));
   }
 
-  /** 세션 수정 PUT /api/sessions/{sessionId} - ADMIN 전용 */
+  /** 세션 수정(ADMIN 전용) */
   @PreAuthorize("hasRole('ADMIN')")
   @PutMapping("/{sessionId}")
   public ResponseEntity<ApiResponse<SessionResponse>> updateSession(
@@ -74,7 +74,7 @@ public class SessionController {
     return ResponseEntity.ok(ApiResponse.success(response, "세션이 수정되었습니다"));
   }
 
-  /** 세션 삭제 DELETE /api/sessions/{sessionId} - ADMIN 전용 */
+  /** 세션 삭제(ADMIN 전용) */
   @PreAuthorize("hasRole('ADMIN')")
   @DeleteMapping("/{sessionId}")
   public ResponseEntity<ApiResponse<Void>> deleteSession(
@@ -83,7 +83,7 @@ public class SessionController {
     return ResponseEntity.ok(ApiResponse.success("세션이 삭제되었습니다"));
   }
 
-  /** 세션 시작 POST /api/sessions/{sessionId}/start - ADMIN 전용, SCHEDULED → ACTIVE */
+  /** 세션 시작(ADMIN 전용, SCHEDULED -> ACTIVE) */
   @PreAuthorize("hasRole('ADMIN')")
   @PostMapping("/{sessionId}/start")
   public ResponseEntity<ApiResponse<SessionResponse>> startSession(
@@ -93,7 +93,7 @@ public class SessionController {
     return ResponseEntity.ok(ApiResponse.success(response, "세션이 시작되었습니다"));
   }
 
-  /** 세션 종료 POST /api/sessions/{sessionId}/close - ADMIN 전용, ACTIVE → COMPLETED */
+  /** 세션 종료(ADMIN 전용, ACTIVE -> COMPLETED) */
   @PreAuthorize("hasRole('ADMIN')")
   @PostMapping("/{sessionId}/close")
   public ResponseEntity<ApiResponse<SessionResponse>> closeSession(
@@ -103,7 +103,7 @@ public class SessionController {
     return ResponseEntity.ok(ApiResponse.success(response, "세션이 종료되었습니다"));
   }
 
-  /** 세션 취소 POST /api/sessions/{sessionId}/cancel - ADMIN 전용 */
+  /** 세션 취소(ADMIN 전용) */
   @PreAuthorize("hasRole('ADMIN')")
   @PostMapping("/{sessionId}/cancel")
   public ResponseEntity<ApiResponse<SessionResponse>> cancelSession(
@@ -113,7 +113,7 @@ public class SessionController {
     return ResponseEntity.ok(ApiResponse.success(response, "세션이 취소되었습니다"));
   }
 
-  /** 활성 세션 조회 GET /api/sessions/active - 현재 진행 중인 세션 목록 */
+  /** 현재 진행 중인 활성 세션 목록 조회 */
   @GetMapping("/active")
   public ResponseEntity<ApiResponse<List<SessionResponse>>> getActiveSessions(
       @AuthenticationPrincipal CustomUserDetails userDetails) {
