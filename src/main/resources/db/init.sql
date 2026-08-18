@@ -1,5 +1,6 @@
 -- =============================================
 -- 출석하자 DB 초기화 스크립트
+-- (Deprecated: Flyway 도입 이후 db/migration/V1__baseline.sql이 기준. 참고용으로만 유지)
 -- =============================================
 
 CREATE DATABASE IF NOT EXISTS attendance
