@@ -9,6 +9,8 @@ import static org.mockito.Mockito.verify;
 
 import com.attendance.domain.fcm.entity.FcmToken;
 import com.attendance.domain.fcm.repository.FcmTokenRepository;
+import com.attendance.domain.fcm.service.FcmSender;
+import com.attendance.domain.fcm.service.FcmSender.FcmSendResult;
 import com.attendance.domain.notification.dto.NotificationRequest;
 import com.attendance.domain.notification.dto.NotificationResponse;
 import com.attendance.domain.notification.entity.Notification;
@@ -53,6 +55,7 @@ class NotificationServiceTest {
   @Mock private NotificationRepository notificationRepository;
   @Mock private UserRepository userRepository;
   @Mock private FcmTokenRepository fcmTokenRepository;
+  @Mock private FcmSender fcmSender;
   @InjectMocks private NotificationService notificationService;
 
   private void stubSaveReturnsSameEntity() {
@@ -82,6 +85,7 @@ class NotificationServiceTest {
                   FcmToken.builder().userId(1L).token("t1").build(),
                   FcmToken.builder().userId(1L).token("t2").build()));
       given(fcmTokenRepository.findAllByUserId(2L)).willReturn(List.of());
+      given(fcmSender.send(any(), any(), any())).willReturn(new FcmSendResult(2, List.of()));
 
       // when
       NotificationResponse response = notificationService.createNotification(request, 99L);
