@@ -14,3 +14,6 @@ spring:
 
   flyway:
     enabled: false  # MySQL 전용 마이그레이션을 H2에 실행하지 않도록 비활성화
+
+firebase:
+  enabled: false  # 테스트 환경엔 실제 Firebase 자격증명이 없으므로 FirebaseConfig 빈 자체를 생성하지 않음

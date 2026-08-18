@@ -24,3 +24,6 @@ jwt:
 
 cors:
   allowed-origins: http://localhost:3000,http://localhost:5173
+
+firebase:
+  credentials-base64: YOUR_FIREBASE_SERVICE_ACCOUNT_BASE64

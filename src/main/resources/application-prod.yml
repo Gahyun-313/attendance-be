@@ -53,6 +53,10 @@ oauth:
   google:
     client-id: ${GOOGLE_OAUTH_CLIENT_ID}
 
+# JWT_SECRET과 동일하게 기본값 없음 - 값이 없으면 기동 자체를 실패시킴
+firebase:
+  credentials-base64: ${FIREBASE_CREDENTIALS_BASE64}
+
 logging:
   level:
     com.attendance: INFO

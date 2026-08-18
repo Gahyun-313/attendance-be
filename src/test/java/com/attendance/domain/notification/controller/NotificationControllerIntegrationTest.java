@@ -1,5 +1,7 @@
 package com.attendance.domain.notification.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -8,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.attendance.domain.fcm.entity.FcmToken;
 import com.attendance.domain.fcm.repository.FcmTokenRepository;
+import com.attendance.domain.fcm.service.FcmSender;
+import com.attendance.domain.fcm.service.FcmSender.FcmSendResult;
 import com.attendance.domain.notification.entity.Notification;
 import com.attendance.domain.notification.repository.NotificationRepository;
 import com.attendance.domain.user.entity.User;
@@ -15,6 +19,7 @@ import com.attendance.domain.user.entity.UserRole;
 import com.attendance.domain.user.repository.UserRepository;
 import com.attendance.global.config.RedissonTestConfig;
 import com.attendance.global.security.JwtTokenProvider;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -31,7 +37,8 @@ import org.springframework.transaction.annotation.Transactional;
  * 알림 API 통합 테스트 @SpringBootTest로 실제 Security 필터 체인(JWT 인증 + @PreAuthorize 인가)까지 띄운 상태로, 알림 생성 시 실제
  * 발송 처리(SENT 판정) 및 역할별 목록 조회 범위, 취소 가능 여부를 HTTP 흐름으로 검증한다. @AutoConfigureTestDatabase(replace =
  * ANY)로 인메모리 H2를 사용한다. @Import(RedissonTestConfig.class) - Day6 Phase2: 실제 Redis 없이도 컨텍스트가 뜨도록
- * RedissonClient를 mock으로 대체 (RedissonTestConfig 참고).
+ * RedissonClient를 mock으로 대체 (RedissonTestConfig 참고). FcmSender는 @MockBean으로 대체 - 실제 Firebase 호출 없이
+ * 발송 성공 시나리오를 검증한다 (FirebaseConfig는 테스트 프로파일에서 firebase.enabled=false로 아예 비활성화됨).
  */
 @Import(RedissonTestConfig.class)
 @SpringBootTest
@@ -45,6 +52,7 @@ class NotificationControllerIntegrationTest {
   @Autowired private FcmTokenRepository fcmTokenRepository;
   @Autowired private NotificationRepository notificationRepository;
   @Autowired private JwtTokenProvider jwtTokenProvider;
+  @MockBean private FcmSender fcmSender;
 
   private String tokenFor(User user) {
     // 실제 로그인 과정을 거치지 않고, 저장된 사용자 정보로 바로 유효한 토큰을 발급 (테스트 편의)
@@ -87,6 +95,7 @@ class NotificationControllerIntegrationTest {
       User admin = saveAdmin();
       User student = saveStudent("A반");
       fcmTokenRepository.save(FcmToken.builder().userId(student.getId()).token("token-1").build());
+      given(fcmSender.send(any(), any(), any())).willReturn(new FcmSendResult(1, List.of()));
       String requestBody =
           """
               {"title":"공지","content":"내용입니다","targetGroup":"A반"}
