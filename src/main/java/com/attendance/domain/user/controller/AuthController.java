@@ -48,9 +48,8 @@ public class AuthController {
   }
 
   /**
-   * 소셜 로그인 처리(구글/카카오)
-   * provider는 "google"/"kakao"이며, 프론트가 SDK로 받은 토큰을 그대로 전달한다.
-   * 기존 연동 계정이면 로그인시키고, 없으면 organizationCode로 신규 ADMIN 계정을 만들며 조인시킨다.
+   * 소셜 로그인 처리(구글/카카오) provider는 "google"/"kakao"이며, 프론트가 SDK로 받은 토큰을 그대로 전달한다. 기존 연동 계정이면 로그인시키고,
+   * 없으면 organizationCode로 신규 ADMIN 계정을 만들며 조인시킨다.
    */
   @PostMapping("/oauth/{provider}")
   public ResponseEntity<ApiResponse<AuthResponse>> oauthLogin(

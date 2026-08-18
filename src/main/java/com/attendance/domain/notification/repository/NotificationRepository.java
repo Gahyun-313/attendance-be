@@ -15,10 +15,9 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
   Page<Notification> findByStatus(NotificationStatus status, Pageable pageable);
 
   /**
-   * 학생에게 노출 가능한 알림만 조회. 전체발송(targetGroup null) 또는 본인 그룹 대상이면서
-   * 지정 상태(SENT 고정)인 알림만 필터링.
-   * countQuery를 명시한 이유는, Page 반환에 OR가 섞인 WHERE절 조합에서 Spring Data가 count 쿼리를
-   * 자동으로 유추할 때 파라미터를 놓쳐 QueryParameterException이 나는 경우가 있기 때문이다.
+   * 학생에게 노출 가능한 알림만 조회. 전체발송(targetGroup null) 또는 본인 그룹 대상이면서 지정 상태(SENT 고정)인 알림만 필터링. countQuery를
+   * 명시한 이유는, Page 반환에 OR가 섞인 WHERE절 조합에서 Spring Data가 count 쿼리를 자동으로 유추할 때 파라미터를 놓쳐
+   * QueryParameterException이 나는 경우가 있기 때문이다.
    */
   @Query(
       value =

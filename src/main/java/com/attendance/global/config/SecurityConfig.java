@@ -37,9 +37,9 @@ public class SecurityConfig {
   private String allowedOrigins;
 
   /**
-   * 요청 필터 체인 구성
-   * 요청 -> CorsFilter -> JwtAuthenticationFilter(JWT 검증) -> UsernamePasswordAuthenticationFilter
-   * (JWT 방식이라 실질적으로 미사용) -> AuthorizationFilter -> 컨트롤러 순으로 처리된다.
+   * 요청 필터 체인 구성 요청 -> CorsFilter -> JwtAuthenticationFilter(JWT 검증) ->
+   * UsernamePasswordAuthenticationFilter (JWT 방식이라 실질적으로 미사용) -> AuthorizationFilter -> 컨트롤러 순으로
+   * 처리된다.
    */
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {

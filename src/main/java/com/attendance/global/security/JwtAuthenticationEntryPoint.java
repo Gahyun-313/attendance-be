@@ -13,7 +13,10 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
-/** 인증되지 않은 요청(401) 처리. 토큰이 없거나 유효하지 않아 Spring Security가 던지는 AuthenticationException을 JSON 에러 응답으로 변환. */
+/**
+ * 인증되지 않은 요청(401) 처리. 토큰이 없거나 유효하지 않아 Spring Security가 던지는 AuthenticationException을 JSON 에러 응답으로
+ * 변환.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -23,7 +26,9 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
   @Override
   public void commence(
-      HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
+      HttpServletRequest request,
+      HttpServletResponse response,
+      AuthenticationException authException)
       throws IOException, ServletException {
     log.error("Unauthorized error: {}", authException.getMessage());
 

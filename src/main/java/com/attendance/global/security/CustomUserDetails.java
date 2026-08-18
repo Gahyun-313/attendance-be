@@ -62,9 +62,8 @@ public class CustomUserDetails implements UserDetails {
   }
 
   /**
-   * 소속 단체 ID 반환
-   * 매 요청마다 CustomUserDetailsService가 User를 DB에서 다시 조회해 담기 때문에
-   * JWT 클레임에 따로 넣지 않아도 항상 최신 값을 얻는다. 사용자/세션 생성 시 organizationId가 필요한 곳에서 사용한다.
+   * 소속 단체 ID 반환 매 요청마다 CustomUserDetailsService가 User를 DB에서 다시 조회해 담기 때문에 JWT 클레임에 따로 넣지 않아도 항상 최신
+   * 값을 얻는다. 사용자/세션 생성 시 organizationId가 필요한 곳에서 사용한다.
    */
   public Long getOrganizationId() {
     return user.getOrganizationId();

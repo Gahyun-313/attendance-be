@@ -8,8 +8,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * FCM 푸시 토큰 엔티티. 사용자의 FCM 토큰을 저장해두고 알림 발송 시 대상 토큰을 찾아 쓴다.
- * 한 사용자가 여러 기기(폰 교체, 재설치 등)를 쓸 수 있어 "User 1 : FcmToken 여러 개" 관계로 설계했다.
+ * FCM 푸시 토큰 엔티티. 사용자의 FCM 토큰을 저장해두고 알림 발송 시 대상 토큰을 찾아 쓴다. 한 사용자가 여러 기기(폰 교체, 재설치 등)를 쓸 수 있어 "User 1
+ * : FcmToken 여러 개" 관계로 설계했다.
  */
 @Entity
 @Table(
@@ -21,7 +21,8 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(
     access =
-        AccessLevel.PROTECTED) // JPA는 기본 생성자가 필요하지만, 외부에서 new로 만들지 못하게 protected로 막고 @Builder만 열어둔다.
+        AccessLevel
+            .PROTECTED) // JPA는 기본 생성자가 필요하지만, 외부에서 new로 만들지 못하게 protected로 막고 @Builder만 열어둔다.
 public class FcmToken {
 
   @Id

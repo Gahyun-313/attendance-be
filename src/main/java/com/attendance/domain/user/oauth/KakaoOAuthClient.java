@@ -14,9 +14,8 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 /**
- * 카카오 OAuth 사용자 정보 조회
- * 카카오는 ID Token 대신 REST API 방식이 표준이라, 프론트가 받은 Access Token으로 카카오 사용자
- * 정보 API를 직접 호출한다. 이메일은 카카오 앱 설정에서 "이메일" 동의항목을 필수로 설정해둬야 내려온다.
+ * 카카오 OAuth 사용자 정보 조회 카카오는 ID Token 대신 REST API 방식이 표준이라, 프론트가 받은 Access Token으로 카카오 사용자 정보 API를 직접
+ * 호출한다. 이메일은 카카오 앱 설정에서 "이메일" 동의항목을 필수로 설정해둬야 내려온다.
  */
 @Slf4j
 @Component

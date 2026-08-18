@@ -72,13 +72,12 @@ public class AttendanceService {
   private final RedissonClient redissonClient;
 
   /**
-   * 출석 체크인 처리(STUDENT)
-   * NFC UID를 검증하고 활성 세션을 역추적해 지각 여부를 판정한 뒤, 분산 락 안에서 출석 레코드를 갱신/생성
-   * WAITING 레코드가 있으면 갱신하고 없으면 새로 생성하며, 이미 처리된 레코드가 있으면 중복 출석 예외를 던진다.
+   * 출석 체크인 처리(STUDENT) NFC UID를 검증하고 활성 세션을 역추적해 지각 여부를 판정한 뒤, 분산 락 안에서 출석 레코드를 갱신/생성 WAITING 레코드가
+   * 있으면 갱신하고 없으면 새로 생성하며, 이미 처리된 레코드가 있으면 중복 출석 예외를 던진다.
    *
-   * <p>격리 수준을 READ_COMMITTED로 낮춘 이유: 기본 REPEATABLE READ는 락을 잡기 전인 1단계에서 이미 스냅샷이
-   * 고정돼서, 동시 요청이 락을 순서대로 통과해도 앞선 요청의 커밋을 못 보고 중복 INSERT를 시도할 수 있다.
-   * READ_COMMITTED는 쿼리를 실행하는 시점마다 최신 커밋을 보므로 이 문제를 막는다.
+   * <p>격리 수준을 READ_COMMITTED로 낮춘 이유: 기본 REPEATABLE READ는 락을 잡기 전인 1단계에서 이미 스냅샷이 고정돼서, 동시 요청이 락을
+   * 순서대로 통과해도 앞선 요청의 커밋을 못 보고 중복 INSERT를 시도할 수 있다. READ_COMMITTED는 쿼리를 실행하는 시점마다 최신 커밋을 보므로 이 문제를
+   * 막는다.
    */
   @Transactional(isolation = Isolation.READ_COMMITTED)
   public AttendanceResponse checkIn(Long userId, CheckInRequest request) {
@@ -207,9 +206,8 @@ public class AttendanceService {
   /**
    * 락 해제를 메서드 종료가 아니라 이 메서드를 호출한 트랜잭션이 실제로 커밋되는 시점으로 미룬다.
    *
-   * <p>바로 unlock()하면 아직 커밋 전인 나머지 단계(캐시 무효화, 이벤트 발행 등) 사이에 다른 요청이 락을
-   * 잡고 "아직 커밋 안 됨"을 보고 중복 INSERT를 시도할 수 있다. afterCompletion 콜백으로 해제를 미루면
-   * 다음 요청은 이전 트랜잭션이 커밋된 뒤에만 락을 잡게 되어 이 문제가 사라진다.
+   * <p>바로 unlock()하면 아직 커밋 전인 나머지 단계(캐시 무효화, 이벤트 발행 등) 사이에 다른 요청이 락을 잡고 "아직 커밋 안 됨"을 보고 중복 INSERT를
+   * 시도할 수 있다. afterCompletion 콜백으로 해제를 미루면 다음 요청은 이전 트랜잭션이 커밋된 뒤에만 락을 잡게 되어 이 문제가 사라진다.
    */
   private void releaseLockAfterTransaction(RLock lock) {
     if (TransactionSynchronizationManager.isSynchronizationActive()) {
@@ -300,9 +298,8 @@ public class AttendanceService {
   }
 
   /**
-   * 세션별 출석 대시보드 조회(ADMIN)
-   * 상태별 레코드 수와 대상자 수(targetCount)를 집계하며, Redis에 5초 TTL로 캐싱하고 조작 시점마다 수동으로도 무효화한다.
-   * 다른 단체 세션이면 404로 존재 자체를 숨긴다.
+   * 세션별 출석 대시보드 조회(ADMIN) 상태별 레코드 수와 대상자 수(targetCount)를 집계하며, Redis에 5초 TTL로 캐싱하고 조작 시점마다 수동으로도
+   * 무효화한다. 다른 단체 세션이면 404로 존재 자체를 숨긴다.
    */
   // key="#sessionId"로 고정한 이유: organizationId까지 기본 키에 포함되면 evictSessionDashboard(sessionId)의
   // 단일 키 evict가 캐시를 찾지 못한다. sessionId는 세션당 유일해 이것만으로 충분하다.

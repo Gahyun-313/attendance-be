@@ -11,10 +11,8 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 /**
- * 구글 OAuth 사용자 정보 조회
- * 프론트가 구글 SDK로 받은 ID Token을 그대로 넘겨받아, 구글의 tokeninfo 엔드포인트에 검증을 위임한다.
- * JWT 서명 검증 라이브러리를 직접 들이지 않아도 되는 대신, 로그인마다 구글에 네트워크 호출이 한 번 생긴다
- * (로그인 빈도를 감안하면 감수할 만한 트레이드오프다).
+ * 구글 OAuth 사용자 정보 조회 프론트가 구글 SDK로 받은 ID Token을 그대로 넘겨받아, 구글의 tokeninfo 엔드포인트에 검증을 위임한다. JWT 서명 검증
+ * 라이브러리를 직접 들이지 않아도 되는 대신, 로그인마다 구글에 네트워크 호출이 한 번 생긴다 (로그인 빈도를 감안하면 감수할 만한 트레이드오프다).
  */
 @Slf4j
 @Component

@@ -14,8 +14,7 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 
 /**
- * 인가 실패(403) 처리 핸들러.
- * JWT는 유효하지만 권한이 부족할 때(@PreAuthorize 등) Spring Security가 던지는
+ * 인가 실패(403) 처리 핸들러. JWT는 유효하지만 권한이 부족할 때(@PreAuthorize 등) Spring Security가 던지는
  * AccessDeniedException을 잡아 JSON 에러 응답으로 변환.
  */
 @Slf4j

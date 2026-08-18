@@ -6,9 +6,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 세션별 출석 대시보드 응답 DTO
- * targetCount는 세션 groupName 기준 대상 학생 수, totalRecords는 실제 생성된 출석 레코드 수(WAITING 포함)다.
- * 그룹 미지정 세션은 targetCount를 totalRecords로 근사한다.
+ * 세션별 출석 대시보드 응답 DTO targetCount는 세션 groupName 기준 대상 학생 수, totalRecords는 실제 생성된 출석 레코드 수(WAITING
+ * 포함)다. 그룹 미지정 세션은 targetCount를 totalRecords로 근사한다.
  */
 @Getter
 @Builder

@@ -80,7 +80,9 @@ public class AttendanceRecord {
     this.modifyReason = reason;
   }
 
-  /** 체크인 처리. 세션 시작 시 사전 생성된 WAITING 레코드를 실제 체크인 정보로 갱신한다(없으면 새로 생성, AttendanceService.checkIn 참고). */
+  /**
+   * 체크인 처리. 세션 시작 시 사전 생성된 WAITING 레코드를 실제 체크인 정보로 갱신한다(없으면 새로 생성, AttendanceService.checkIn 참고).
+   */
   public void checkIn(
       AttendanceStatus status, LocalDateTime checkInTime, String nfcTagUid, String nfcLocation) {
     this.status = status;

@@ -16,7 +16,9 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-  /** BusinessException과 그 하위(InvalidValueException/EntityNotFoundException/DuplicateException) 처리 */
+  /**
+   * BusinessException과 그 하위(InvalidValueException/EntityNotFoundException/DuplicateException) 처리
+   */
   @ExceptionHandler(BusinessException.class)
   protected ResponseEntity<ErrorResponse> handleBusinessException(BusinessException e) {
     log.error("BusinessException: {}", e.getMessage());
@@ -34,7 +36,9 @@ public class GlobalExceptionHandler {
     return new ResponseEntity<>(response, ErrorCode.ACCESS_DENIED.getStatus());
   }
 
-  /** @Valid 검증 실패 처리(이메일 형식 오류, 필수값 누락, 길이 제한 초과 등) */
+  /**
+   * @Valid 검증 실패 처리(이메일 형식 오류, 필수값 누락, 길이 제한 초과 등)
+   */
   @ExceptionHandler(MethodArgumentNotValidException.class)
   protected ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(
       MethodArgumentNotValidException e) {
@@ -54,8 +58,8 @@ public class GlobalExceptionHandler {
   }
 
   /**
-   * 매핑되지 않은 경로 요청 처리. Boot 3.2+부터 NoHandlerFoundException 대신 이 예외가 던져진다.
-   * 이 핸들러가 없으면 아래 catch-all(Exception)이 먼저 잡아 500으로 응답해버린다.
+   * 매핑되지 않은 경로 요청 처리. Boot 3.2+부터 NoHandlerFoundException 대신 이 예외가 던져진다. 이 핸들러가 없으면 아래
+   * catch-all(Exception)이 먼저 잡아 500으로 응답해버린다.
    */
   @ExceptionHandler(NoResourceFoundException.class)
   protected ResponseEntity<ErrorResponse> handleNoResourceFoundException(

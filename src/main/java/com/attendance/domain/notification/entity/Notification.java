@@ -10,9 +10,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 알림 엔티티. 관리자가 만든 "발송 단위" 하나를 표현한다. 수신자별 읽음 여부 등 개인화 내역은 없고,
- * targetGroup 조건으로 학생이 자신에게 해당하는 알림만 걸러 본다(findVisibleToGroup 참고).
- * 실제 FCM 발송은 firebase-admin이 비활성화 상태라, 지금은 토큰 존재 여부만 확인해 SENT/FAILED로 전이시키는 것까지만 구현했다.
+ * 알림 엔티티. 관리자가 만든 "발송 단위" 하나를 표현한다. 수신자별 읽음 여부 등 개인화 내역은 없고, targetGroup 조건으로 학생이 자신에게 해당하는 알림만 걸러
+ * 본다(findVisibleToGroup 참고). 실제 FCM 발송은 firebase-admin이 비활성화 상태라, 지금은 토큰 존재 여부만 확인해 SENT/FAILED로
+ * 전이시키는 것까지만 구현했다.
  */
 @Entity
 @Table(

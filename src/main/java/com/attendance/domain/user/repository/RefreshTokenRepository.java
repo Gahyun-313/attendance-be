@@ -20,10 +20,9 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
   boolean existsByUserId(Long userId);
 
   /**
-   * userId로 RefreshToken 삭제.
-   * {@code @Modifying} 없는 평범한 delete는 실제 DELETE가 커밋 시점에야 나간다. 그런데
-   * AuthService.login()에서 바로 뒤에 부르는 save()는 IDENTITY 전략이라 즉시 INSERT가 나가버려서
-   * UNIQUE(user_id) 제약과 충돌할 수 있다. {@code @Modifying}+JPQL로 DELETE를 동기 실행시켜 막는다.
+   * userId로 RefreshToken 삭제. {@code @Modifying} 없는 평범한 delete는 실제 DELETE가 커밋 시점에야 나간다. 그런데
+   * AuthService.login()에서 바로 뒤에 부르는 save()는 IDENTITY 전략이라 즉시 INSERT가 나가버려서 UNIQUE(user_id) 제약과 충돌할
+   * 수 있다. {@code @Modifying}+JPQL로 DELETE를 동기 실행시켜 막는다.
    */
   @Modifying(clearAutomatically = true)
   @Query("DELETE FROM RefreshToken r WHERE r.userId = :userId")

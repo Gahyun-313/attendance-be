@@ -69,9 +69,8 @@ public class UserService {
   }
 
   /**
-   * 사용자 대시보드 조회(ADMIN)
-   * 전체/활성 사용자 수, 상태별 출석 건수, 이번 달 신규 대상자 수 집계
-   * StatisticsService와 동일하게 organizationId를 캐시 키로 1분간 캐싱해 단체별로 분리한다.
+   * 사용자 대시보드 조회(ADMIN) 전체/활성 사용자 수, 상태별 출석 건수, 이번 달 신규 대상자 수 집계 StatisticsService와 동일하게
+   * organizationId를 캐시 키로 1분간 캐싱해 단체별로 분리한다.
    */
   @Cacheable(cacheNames = RedisConfig.CACHE_USER_DASHBOARD)
   public UserDashboardResponse getUserDashboard(Long organizationId) {

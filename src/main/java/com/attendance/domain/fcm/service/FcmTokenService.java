@@ -19,9 +19,8 @@ public class FcmTokenService {
   private final FcmTokenRepository fcmTokenRepository;
 
   /**
-   * FCM 토큰 등록
-   * token에 unique 제약이 있어 이미 존재하는 값을 그대로 save()하면 예외가 난다. findByToken으로
-   * 있으면 소유자만 바꾸고, 없으면 새로 생성하는 upsert 방식으로 처리해 재요청에도 멱등하게 동작하게 한다.
+   * FCM 토큰 등록 token에 unique 제약이 있어 이미 존재하는 값을 그대로 save()하면 예외가 난다. findByToken으로 있으면 소유자만 바꾸고, 없으면
+   * 새로 생성하는 upsert 방식으로 처리해 재요청에도 멱등하게 동작하게 한다.
    */
   @Transactional
   public FcmTokenResponse registerToken(Long userId, FcmTokenRequest request) {
