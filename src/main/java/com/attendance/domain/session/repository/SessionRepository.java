@@ -10,50 +10,44 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-/** 출석 세션 Repository */
+/** 출석 세션에 대한 조회 처리 */
 public interface SessionRepository extends JpaRepository<AttendanceSession, Long> {
 
-  /** 상태별 세션 조회 (페이징) */
+  /** 상태별 세션 페이징 조회 */
   Page<AttendanceSession> findByStatus(SessionStatus status, Pageable pageable);
 
-  /** 그룹별 세션 조회 (페이징) */
+  /** 그룹별 세션 페이징 조회 */
   Page<AttendanceSession> findByGroupName(String groupName, Pageable pageable);
 
   /** 날짜별 세션 조회 */
   List<AttendanceSession> findBySessionDate(LocalDate sessionDate);
 
-  /** 세션명 검색 (페이징) */
+  /** 세션명으로 검색 */
   Page<AttendanceSession> findByTitleContaining(String title, Pageable pageable);
 
-  /** 상태 + 세션명 검색 (페이징) */
+  /** 상태와 세션명으로 검색 */
   Page<AttendanceSession> findByStatusAndTitleContaining(
       SessionStatus status, String title, Pageable pageable);
 
-  // ------------------------------------------------
-  // 단체(organizationId) 격리 버전 - GET /api/sessions (ADMIN)에서 사용
-  // 위 findByStatus/findByTitleContaining/findByStatusAndTitleContaining은 아직 다른 곳에서
-  // 안 쓰지만 회귀 위험을 줄이려고 남겨두고, 조회 API 경로는 아래 organizationId 포함 버전으로 옮긴다.
-  // ------------------------------------------------
+  // 아래부터는 단체(organizationId) 격리 버전. GET /api/sessions (ADMIN)에서 사용.
+  // 위 버전들은 다른 곳에서 쓰이진 않지만 회귀 위험 때문에 그대로 남겨둔다.
 
-  /** 단체 내 전체 세션 조회 (페이징, 상태/키워드 필터 없음) */
+  /** 단체 내 전체 세션 상태/키워드 필터 없이 페이징 조회 */
   Page<AttendanceSession> findByOrganizationId(Long organizationId, Pageable pageable);
 
-  /** 단체 내 상태별 세션 조회 (페이징) */
+  /** 단체 내 상태별 세션 페이징 조회 */
   Page<AttendanceSession> findByOrganizationIdAndStatus(
       Long organizationId, SessionStatus status, Pageable pageable);
 
-  /** 단체 내 세션명 검색 (페이징) */
+  /** 단체 내 세션명으로 검색 */
   Page<AttendanceSession> findByOrganizationIdAndTitleContaining(
       Long organizationId, String title, Pageable pageable);
 
-  /** 단체 내 상태 + 세션명 검색 (페이징) */
+  /** 단체 내 상태와 세션명으로 검색 */
   Page<AttendanceSession> findByOrganizationIdAndStatusAndTitleContaining(
       Long organizationId, SessionStatus status, String title, Pageable pageable);
 
-  /**
-   * 현재 활성 세션 조회 - 현재 시각이 startTime ~ endTime 사이이고 ACTIVE 상태인 세션 - organizationId 조건 추가: 다른 단체의 활성
-   * 세션이 섞여 나오지 않도록 고정
-   */
+  /** organizationId로 단체를 격리해, startTime~endTime 사이이면서 ACTIVE 상태인 세션 조회 */
   @Query(
       """
           SELECT s FROM AttendanceSession s
@@ -64,11 +58,7 @@ public interface SessionRepository extends JpaRepository<AttendanceSession, Long
           """)
   List<AttendanceSession> findActiveSessions(@Param("organizationId") Long organizationId);
 
-  /**
-   * NFC 태그 ID로 현재 활성 세션 조회 - 학생 체크인 시 태그에 연결된 진행 중 세션 역추적에 사용. 정상 운영 시 동일 태그에 동시에 ACTIVE인 세션은 1개여야
-   * 하며(SessionService.startSession에서 검증), 혹시 다수가 잡히는 경우를 대비해 startTime 내림차순 정렬 후 서비스에서 첫 번째(가장 최근
-   * 시작된 세션)를 사용한다.
-   */
+  /** NFC 태그로 현재 활성 세션 역추적(체크인용). 정상적으로는 1개지만, 여러 개가 잡히면 startTime 내림차순 첫 번째를 쓴다. */
   @Query(
       """
           SELECT s FROM AttendanceSession s
@@ -80,47 +70,38 @@ public interface SessionRepository extends JpaRepository<AttendanceSession, Long
           """)
   List<AttendanceSession> findActiveSessionsByNfcTagId(@Param("nfcTagId") Long nfcTagId);
 
-  /**
-   * 태그ID + 상태로 세션 조회 - 세션 시작(startSession) 시 동일 NFC 태그를 사용하는 다른 ACTIVE 세션이 있는지 검증할 때 사용 (중복 활성 세션
-   * 방지)
-   */
+  /** 태그ID와 상태로 세션 조회. 세션 시작 시 같은 태그의 중복 ACTIVE 세션을 검증할 때 사용. */
   List<AttendanceSession> findByNfcTagIdAndStatus(Long nfcTagId, SessionStatus status);
 
-  /** 날짜별 세션 수 - 대시보드 통계(오늘 세션 수)에 사용 */
+  /** 날짜별 세션 수 조회. 대시보드 통계의 오늘 세션 수에 사용. */
   long countBySessionDate(LocalDate sessionDate);
 
-  /** 상태별 세션 수 - 전체 통계(overall)의 완료 세션 수 등 집계용 */
+  /** 상태별 세션 수 조회. 전체 통계의 완료 세션 수 등 집계에 사용. */
   long countByStatus(SessionStatus status);
 
-  /** 그룹별 + 상태별 세션 목록 조회 - 대시보드 통계의 그룹별 출석률 집계에 사용 (완료된 세션만 대상으로 그룹별 누적 출석 현황을 계산) */
+  /** 그룹별+상태별 세션 목록 조회. 대시보드 통계의 그룹별 출석률 집계에 사용하며, 완료된 세션만 대상으로 한다. */
   List<AttendanceSession> findByGroupNameAndStatus(String groupName, SessionStatus status);
 
-  /**
-   * 최근 완료된 세션 N건 조회 - 대시보드 통계의 "최근 출석률 트렌드"에 사용 (Pageable로 개수 제한, sessionDate/startTime DESC 정렬은
-   * 호출부에서 Pageable로 전달)
-   */
+  /** 최근 완료된 세션 N건 조회. 대시보드의 최근 출석률 트렌드에 사용하며, 개수/정렬은 Pageable로 전달받는다. */
   List<AttendanceSession> findByStatusOrderBySessionDateDesc(
       SessionStatus status, Pageable pageable);
 
-  // ------------------------------------------------
-  // 단체(organizationId) 격리 버전 - StatisticsService 전용 (위 메서드들은 다른 곳에서 안 쓰지만
-  // 회귀 위험을 줄이려고 그대로 남겨두고, 통계 API 경로만 아래 organizationId 포함 버전으로 옮긴다)
-  // ------------------------------------------------
+  // 아래부터는 단체(organizationId) 격리 버전. StatisticsService 전용.
 
-  /** 단체 내 전체 세션 수 - 전체 통계(overall)의 총 세션 수 집계용 (위 count()의 단체 격리 버전) */
+  /** 단체 내 전체 세션 수 조회. 전체 통계의 총 세션 수 집계에 사용하며, count()의 단체 격리 버전이다. */
   long countByOrganizationId(Long organizationId);
 
-  /** 단체 내 상태별 세션 수 - 전체 통계(overall)/대시보드 통계 집계용 */
+  /** 단체 내 상태별 세션 수 조회. 전체 통계/대시보드 통계 집계에 사용. */
   long countByOrganizationIdAndStatus(Long organizationId, SessionStatus status);
 
-  /** 단체 내 날짜별 세션 수 - 대시보드 통계(오늘 세션 수) 집계용 */
+  /** 단체 내 날짜별 세션 수 조회. 대시보드 통계의 오늘 세션 수 집계에 사용. */
   long countByOrganizationIdAndSessionDate(Long organizationId, LocalDate sessionDate);
 
-  /** 단체 내 그룹별 + 상태별 세션 목록 조회 - 대시보드 통계의 그룹별 출석률 집계용 */
+  /** 단체 내 그룹별+상태별 세션 목록 조회. 대시보드 통계의 그룹별 출석률 집계에 사용. */
   List<AttendanceSession> findByOrganizationIdAndGroupNameAndStatus(
       Long organizationId, String groupName, SessionStatus status);
 
-  /** 단체 내 최근 완료된 세션 N건 조회 - 대시보드 통계의 "최근 출석률 트렌드" 집계용 */
+  /** 단체 내 최근 완료된 세션 N건 조회. 대시보드의 최근 출석률 트렌드 집계에 사용. */
   List<AttendanceSession> findByOrganizationIdAndStatusOrderBySessionDateDesc(
       Long organizationId, SessionStatus status, Pageable pageable);
 }

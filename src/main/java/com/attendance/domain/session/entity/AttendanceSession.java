@@ -10,7 +10,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.*;
 
-/** 출석 세션 엔티티 하나의 수업 출석 체크 단위 */
+/** 출석 세션 엔티티. 하나의 수업 출석 체크 단위를 표현한다. */
 @Entity
 @Table(name = "attendance_sessions")
 @Getter
@@ -24,7 +24,7 @@ public class AttendanceSession {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  // 소속 단체 (Organization FK) - User.organizationId와 동일 패턴, 연관관계 대신 Long으로 저장
+  // 소속 단체(Organization FK). User.organizationId와 동일한 패턴으로, 연관관계 대신 Long으로 저장한다.
   @Column(name = "organization_id", nullable = false)
   private Long organizationId;
 
@@ -34,11 +34,11 @@ public class AttendanceSession {
   @Column(length = 500)
   private String description;
 
-  // 대상 그룹 (예: "A반", "1학년") - 어드민 웹에서 그룹별 세션 필터링에 사용
+  // 대상 그룹(예: "A반", "1학년"). 어드민 웹에서 그룹별 세션 필터링에 사용.
   @Column(name = "group_name", length = 100)
   private String groupName;
 
-  // 세션 날짜 - 날짜별 필터링용 (startTime과 별도로 관리해 조회 편의성 확보)
+  // 세션 날짜. startTime과 별도로 관리해 날짜별 필터링 조회 편의성을 확보한다.
   @Column(name = "session_date")
   private LocalDate sessionDate;
 
@@ -59,7 +59,7 @@ public class AttendanceSession {
   @Column(nullable = false, length = 20)
   private SessionStatus status;
 
-  // 세션에 연결된 NFC 태그 - 출석 체크 시 해당 태그로만 체크인 가능
+  // 세션에 연결된 NFC 태그. 출석 체크 시 이 태그로만 체크인할 수 있다.
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "nfc_tag_id")
   private NfcTag nfcTag;
@@ -118,7 +118,7 @@ public class AttendanceSession {
     this.note = request.getNote();
   }
 
-  /** 세션 시작 - SCHEDULED → ACTIVE */
+  /** 세션 시작(SCHEDULED -> ACTIVE) */
   public void start() {
     if (this.status != SessionStatus.SCHEDULED) {
       throw new BusinessException(ErrorCode.SESSION_NOT_ACTIVE);
@@ -126,7 +126,7 @@ public class AttendanceSession {
     this.status = SessionStatus.ACTIVE;
   }
 
-  /** 세션 종료 - ACTIVE → COMPLETED */
+  /** 세션 종료(ACTIVE -> COMPLETED) */
   public void close() {
     if (this.status != SessionStatus.ACTIVE) {
       throw new BusinessException(ErrorCode.SESSION_NOT_ACTIVE);

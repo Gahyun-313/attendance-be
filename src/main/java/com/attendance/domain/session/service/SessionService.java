@@ -20,7 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 출석 세션 비즈니스 로직 */
+/** 출석 세션 비즈니스 로직 처리 */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -31,22 +31,18 @@ public class SessionService {
   private final AttendanceService attendanceService;
   private final OrganizationRepository organizationRepository;
 
-  /**
-   * 세션 생성
-   *
-   * @param organizationId 생성한 관리자가 속한 단체 ID (요청 바디로 안 받고 인증 정보에서 가져옴)
-   */
+  /** 세션 생성. organizationId는 요청 바디로 받지 않고 생성한 관리자의 인증 정보에서 가져온다. */
   @Transactional
   public SessionResponse createSession(
       SessionRequest request, Long createdBy, Long organizationId) {
-    // NFC 태그 연결 (선택)
+    // 선택 항목인 NFC 태그 연결
     NfcTag nfcTag = resolveNfcTag(request.getNfcTagId());
 
     AttendanceSession session = request.toEntity(createdBy, nfcTag, organizationId);
     return SessionResponse.from(sessionRepository.save(session));
   }
 
-  /** 세션 목록 조회 (페이징) - 상태/세션명으로 필터링 - organizationId는 요청한 관리자의 단체로 고정 (다른 단체 세션 노출 방지) */
+  /** 세션 목록 페이징 조회. 상태/키워드 조합에 따라 조회 메서드를 분기하고, organizationId로 단체 격리 */
   public Page<SessionResponse> getSessions(
       SessionStatus status, String keyword, Long organizationId, Pageable pageable) {
     if (status != null && keyword != null) {
@@ -68,12 +64,12 @@ public class SessionService {
         .map(SessionResponse::from);
   }
 
-  /** 세션 상세 조회 - 요청한 관리자와 다른 단체 소속 세션이면 존재 자체를 노출하지 않기 위해 조회 실패(404)로 처리 */
+  /** 세션 상세 조회. 다른 단체 소속이면 404로 존재 자체를 숨긴다. */
   public SessionResponse getSession(Long sessionId, Long organizationId) {
     return SessionResponse.from(findSessionByIdAndOrganization(sessionId, organizationId));
   }
 
-  /** 세션 수정 - 다른 단체 세션이면 존재 자체를 노출하지 않기 위해 404로 처리 (getSession과 동일한 패턴) */
+  /** 세션 수정. 다른 단체 세션이면 404로 존재 자체를 숨긴다. */
   @Transactional
   public SessionResponse updateSession(
       Long sessionId, SessionRequest request, Long organizationId) {
@@ -92,7 +88,7 @@ public class SessionService {
     return SessionResponse.from(session);
   }
 
-  /** 세션 삭제 - 다른 단체 세션이면 존재 자체를 노출하지 않기 위해 404로 처리 */
+  /** 세션 삭제. 다른 단체 세션이면 404로 존재 자체를 숨긴다. */
   @Transactional
   public void deleteSession(Long sessionId, Long organizationId) {
     findSessionByIdAndOrganization(sessionId, organizationId);
@@ -100,14 +96,15 @@ public class SessionService {
   }
 
   /**
-   * 세션 시작 - SCHEDULED → ACTIVE, 대상 그룹 학생 전원에게 WAITING 레코드 사전 생성 - 동일 NFC 태그를 사용하는 다른 세션이 이미 ACTIVE면
-   * 시작 차단 (체크인 시 태그→세션 역추적이 모호해지는 것을 방지, findActiveSessionsByNfcTagId 참고) - 다른 단체 세션이면 존재 자체를 노출하지
-   * 않기 위해 404로 처리
+   * 세션 시작(SCHEDULED -> ACTIVE)
+   * 같은 NFC 태그를 쓰는 다른 세션이 이미 ACTIVE면, 체크인 시 태그로 세션을 역추적하는 게 모호해지므로 시작을 막는다.
+   * 세션을 시작한 뒤 대상 그룹 학생 전원에게 WAITING 레코드 미리 생성
    */
   @Transactional
   public SessionResponse startSession(Long sessionId, Long organizationId) {
     AttendanceSession session = findSessionByIdAndOrganization(sessionId, organizationId);
 
+    // 같은 NFC 태그를 쓰는 다른 ACTIVE 세션이 있는지 확인
     if (session.getNfcTag() != null) {
       boolean tagAlreadyInUse =
           sessionRepository
@@ -124,22 +121,19 @@ public class SessionService {
     return SessionResponse.from(session);
   }
 
-  /**
-   * 세션 종료 - ACTIVE → COMPLETED, 남은 WAITING 레코드를 결석(ABSENT)으로 일괄 처리 - 다른 단체 세션이면 존재 자체를 노출하지 않기 위해
-   * 404로 처리
-   */
+  /** 세션 종료(ACTIVE -> COMPLETED). 단체 설정에 따라 남은 WAITING 레코드를 결석(ABSENT)으로 일괄 처리 */
   @Transactional
   public SessionResponse closeSession(Long sessionId, Long organizationId) {
     AttendanceSession session = findSessionByIdAndOrganization(sessionId, organizationId);
     session.close();
-    // 단체 설정(autoAbsentEnable)이 꺼져 있으면 남은 WAITING을 그대로 두고 관리자가 수동으로 처리하게 함
+    // 단체 설정(autoAbsentEnable)이 꺼져 있으면 남은 WAITING을 그대로 두고 관리자가 수동으로 처리한다.
     if (isAutoAbsentEnable(organizationId)) {
       attendanceService.markAbsentForRemainingWaiting(sessionId);
     }
     return SessionResponse.from(session);
   }
 
-  /** 세션 취소 - 다른 단체 세션이면 존재 자체를 노출하지 않기 위해 404로 처리 */
+  /** 세션 취소. 다른 단체 세션이면 404로 존재 자체를 숨긴다. */
   @Transactional
   public SessionResponse cancelSession(Long sessionId, Long organizationId) {
     AttendanceSession session = findSessionByIdAndOrganization(sessionId, organizationId);
@@ -147,28 +141,23 @@ public class SessionService {
     return SessionResponse.from(session);
   }
 
-  /** 현재 활성 세션 목록 조회 - organizationId는 요청한 관리자의 단체로 고정 */
+  /** 현재 활성 세션 목록 조회. organizationId로 단체 격리 */
   public List<SessionResponse> getActiveSessions(Long organizationId) {
     return sessionRepository.findActiveSessions(organizationId).stream()
         .map(SessionResponse::from)
         .toList();
   }
 
-  // ------------------------------------------------
   // 내부 유틸
-  // ------------------------------------------------
 
-  /** 세션 조회 공통 메서드 */
+  /** 세션 조회 */
   private AttendanceSession findSessionById(Long sessionId) {
     return sessionRepository
         .findById(sessionId)
         .orElseThrow(() -> new EntityNotFoundException(ErrorCode.SESSION_NOT_FOUND));
   }
 
-  /**
-   * 세션 조회 + 소속 단체 검증 공통 메서드 - 수정/삭제/시작/종료/취소 등 상태를 바꾸는 작업 전에 호출해서, 다른 단체 세션을 조작하려는 시도를 존재 자체가 없는
-   * 것처럼(404) 차단한다.
-   */
+  /** 세션을 조회하고 소속 단체 검증. 수정/삭제/시작/종료/취소 전에 호출해 다른 단체 세션 조작을 404로 차단한다. */
   private AttendanceSession findSessionByIdAndOrganization(Long sessionId, Long organizationId) {
     AttendanceSession session = findSessionById(sessionId);
     if (!session.getOrganizationId().equals(organizationId)) {
@@ -177,7 +166,7 @@ public class SessionService {
     return session;
   }
 
-  /** 단체의 "결석 자동 처리" 정책 조회 - 단체를 못 찾는 경우 기본값 true 설정 */
+  /** 단체의 "결석 자동 처리" 정책 조회. 단체를 찾지 못하면 기본값 true를 반환한다. */
   private boolean isAutoAbsentEnable(Long organizationId) {
     return organizationRepository
         .findById(organizationId)
@@ -185,7 +174,7 @@ public class SessionService {
         .orElse(true);
   }
 
-  /** NFC 태그 ID로 태그 조회 (null이면 null 반환) */
+  /** NFC 태그 ID로 태그 조회. nfcTagId가 null이면 null을 반환한다. */
   private NfcTag resolveNfcTag(Long nfcTagId) {
     if (nfcTagId == null) return null;
     return nfcTagRepository

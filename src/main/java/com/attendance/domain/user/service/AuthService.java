@@ -22,7 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 인증 비즈니스 로직 */
+/** 인증 비즈니스 로직 처리 */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -37,7 +37,7 @@ public class AuthService {
   private final KakaoOAuthClient kakaoOAuthClient;
   private final EmailVerificationService emailVerificationService;
 
-  /** 로그인 */
+  /** 로그인 처리 */
   @Transactional
   public AuthResponse login(LoginRequest request) {
     User user =
@@ -45,13 +45,13 @@ public class AuthService {
             .findByUsername(request.getUsername())
             .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
 
-    // 소셜 로그인 전용 계정(password == null)은 이 경로로 로그인할 수 없음 - 비밀번호가 아예 없기 때문
+    // 소셜 로그인 전용 계정(password == null)은 비밀번호 자체가 없어 이 경로로 로그인할 수 없다.
     if (user.getPassword() == null
         || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
       throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
     }
 
-    // 비활성화된 사용자는 로그인 불가 (UserService.deleteUser에서 soft delete 처리된 계정)
+    // 비활성화된 사용자는 로그인할 수 없다. UserService.deleteUser로 soft delete된 계정이다.
     if (!user.getActive()) {
       throw new BusinessException(ErrorCode.INACTIVE_USER);
     }
@@ -60,13 +60,9 @@ public class AuthService {
   }
 
   /**
-   * 소셜 로그인 (구글/카카오) POST /api/auth/oauth/{provider}
-   *
-   * <p>흐름: (1) 제공자 토큰으로 사용자 정보 조회 → (2) provider+providerId로 이미 연결된 계정이 있으면 바로 로그인 → (3) 없으면 신규 조인
-   * - organizationCode로 단체를 확인하고 ADMIN 계정을 새로 만든 뒤 로그인 처리. 최초 단체 생성/최초 어드민은 여전히 운영자가 수동 생성하고(변경
-   * 없음), 이 경로는 "추가 어드민"이 단체코드를 들고 셀프 조인하는 흐름이다 (multi-tenancy-plan.md 참고).
-   *
-   * @param provider "google" 또는 "kakao" (대소문자 무관)
+   * 소셜 로그인 처리(구글/카카오, provider는 "google"/"kakao" 대소문자 무관)
+   * 제공자 토큰으로 사용자를 조회해 연결된 계정이 있으면 로그인시키고, 없으면 organizationCode로
+   * 단체를 확인한 뒤 신규 ADMIN 계정을 생성한다(셀프 조인). 최초 단체/최초 어드민은 운영자가 수동 생성한다.
    */
   @Transactional
   public AuthResponse oauthLogin(String provider, OAuthLoginRequest request) {
@@ -87,19 +83,13 @@ public class AuthService {
     return issueTokens(user);
   }
 
-  /**
-   * 이메일 인증으로 단체 조인 (소셜 로그인 대체 경로) POST /api/auth/join/email/verify
-   *
-   * <p>회사 네트워크 등에서 소셜 로그인 서비스 자체가 차단돼 있을 때를 대비한 경로 - 미리 발급받은 인증
-   * 코드(EmailVerificationService.sendVerificationCode)를 검증해 organizationId를 얻고, 사용자가 직접 지정한 비밀번호로
-   * ADMIN 계정을 생성한다. 생성 즉시 로그인 처리(토큰 발급)까지 한다.
-   */
+  /** 이메일 인증으로 단체 조인(소셜 로그인이 막힌 환경 대비). 인증 코드를 검증해 organizationId를 얻고 ADMIN 계정을 생성한 뒤 바로 로그인 처리 */
   @Transactional
   public AuthResponse joinByEmail(EmailJoinVerifyRequest request) {
     Long organizationId =
         emailVerificationService.verifyAndConsume(request.getEmail(), request.getCode());
 
-    // 인증 코드 발급 시점에도 중복 체크를 하지만, 발급 후 검증 전 사이에 다른 경로로 가입됐을 수 있어 재확인
+    // 인증 코드 발급 시점에도 중복을 체크하지만, 발급 후 검증 전 사이에 다른 경로로 가입됐을 수 있어 재확인한다.
     if (userRepository.existsByEmail(request.getEmail())) {
       throw new DuplicateException(ErrorCode.DUPLICATE_EMAIL);
     }
@@ -107,24 +97,19 @@ public class AuthService {
     User user =
         userRepository.save(
             User.builder()
-                .username(request.getEmail()) // 소셜/이메일 조인 계정은 이메일을 username으로 사용
+                .username(request.getEmail()) // 소셜/이메일 조인 계정은 이메일을 username으로 쓴다.
                 .password(passwordEncoder.encode(request.getPassword()))
                 .email(request.getEmail())
                 .name(request.getName())
                 .role(UserRole.ADMIN)
                 .organizationId(organizationId)
-                .passwordChanged(true) // 본인이 직접 지정한 비밀번호라 "최초 변경 안내" 대상 아님
+                .passwordChanged(true) // 본인이 직접 지정한 비밀번호라 "최초 변경 안내" 대상이 아니다.
                 .build());
 
     return issueTokens(user);
   }
 
-  /**
-   * 비밀번호 재설정 (로그아웃 상태) POST /api/auth/password-reset/verify
-   *
-   * <p>joinByEmail과 달리 계정을 새로 만들지 않고, 이미 존재하는 계정의 비밀번호만 바꾼다. 재설정 성공 후 자동 로그인은 시키지 않는다. 새 비밀번호로
-   * /api/auth/login을 다시 호출해야 한다.
-   */
+  /** 비밀번호 재설정(로그아웃 상태). 기존 계정의 비밀번호만 변경하며, 자동 로그인은 시키지 않는다. */
   @Transactional
   public void resetPassword(PasswordResetVerifyRequest request) {
     emailVerificationService.verifyPasswordResetCodes(request.getEmail(), request.getCode());
@@ -137,9 +122,7 @@ public class AuthService {
     user.changePassword(passwordEncoder.encode(request.getNewPassword()));
   }
 
-  // ------------------------------------------------
   // 내부 유틸
-  // ------------------------------------------------
 
   /** 제공자별 사용자 정보 조회 분기 */
   private OAuthUserInfo fetchOAuthUserInfo(String normalizedProvider, String token) {
@@ -150,7 +133,7 @@ public class AuthService {
     };
   }
 
-  /** 아직 연결된 계정이 없는 소셜 로그인 - organizationCode를 검증하고 신규 ADMIN 계정 생성 */
+  /** 아직 연결된 계정이 없는 소셜 로그인 사용자를 위해 organizationCode를 검증하고 신규 ADMIN 계정 생성 */
   private User joinNewOAuthAdmin(String provider, OAuthUserInfo userInfo, String organizationCode) {
     if (organizationCode == null || organizationCode.isBlank()) {
       throw new BusinessException(ErrorCode.ORGANIZATION_CODE_REQUIRED);
@@ -160,8 +143,8 @@ public class AuthService {
             .findByCode(organizationCode)
             .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ORGANIZATION_CODE));
 
-    // 같은 이메일로 이미 password 계정 등 다른 계정이 존재하면 충돌 - provider/providerId만
-    // 다르고 이메일이 같은 경우까지는 계정 통합(연동)하지 않고 명확히 막는다 (범위 밖으로 미룸)
+    // 같은 이메일로 이미 다른 계정(예: password 계정)이 존재하면 충돌로 막는다. provider/providerId만
+    // 다르고 이메일이 같은 경우의 계정 통합(연동)은 범위 밖이라 다루지 않는다.
     if (userRepository.existsByEmail(userInfo.getEmail())) {
       throw new DuplicateException(ErrorCode.DUPLICATE_EMAIL);
     }
@@ -169,18 +152,18 @@ public class AuthService {
     return userRepository.save(
         User.builder()
             .username(userInfo.getEmail())
-            .password(null) // 소셜 로그인 전용 계정 - 비밀번호 로그인 경로 자체를 안 씀
+            .password(null) // 소셜 로그인 전용 계정이라 비밀번호 로그인 경로 자체를 쓰지 않는다.
             .email(userInfo.getEmail())
             .name(userInfo.getName())
             .role(UserRole.ADMIN)
             .organizationId(organization.getId())
             .provider(provider)
             .providerId(userInfo.getProviderId())
-            .passwordChanged(true) // 비밀번호가 없으니 "변경 안내" 대상 아님
+            .passwordChanged(true) // 비밀번호가 없으니 "변경 안내" 대상이 아니다.
             .build());
   }
 
-  /** Access/Refresh Token 발급 + 기존 Refresh Token 교체 - login/oauthLogin/joinByEmail 공용 */
+  /** Access/Refresh 토큰을 발급하고 기존 Refresh Token 교체. login/oauthLogin/joinByEmail에서 공용으로 사용한다. */
   private AuthResponse issueTokens(User user) {
     String accessToken =
         jwtTokenProvider.createAccessToken(user.getId(), user.getUsername(), user.getRole().name());
@@ -192,7 +175,7 @@ public class AuthService {
         RefreshToken.builder()
             .userId(user.getId())
             .token(refreshToken)
-            // Refresh Token 만료 시각 - DB에서 만료 여부 확인에 사용
+            // Refresh Token 만료 시각. DB에서 만료 여부를 확인할 때 사용한다.
             .expiresAt(
                 LocalDateTime.now()
                     .plusSeconds(jwtTokenProvider.getRefreshTokenExpirationSeconds()))
@@ -228,7 +211,7 @@ public class AuthService {
         newAccessToken, jwtTokenProvider.getAccessTokenExpirationSeconds());
   }
 
-  /** 로그아웃 */
+  /** 로그아웃 처리 */
   @Transactional
   public void logout(Long userId) {
     refreshTokenRepository.deleteByUserId(userId);

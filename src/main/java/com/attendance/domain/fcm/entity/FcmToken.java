@@ -8,8 +8,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * FCM 푸시 토큰 엔티티 - 사용자가 앱을 설치/로그인하면 발급받는 FCM 토큰을 저장해두고, 나중에 알림을 보낼 때 이 테이블에서 대상 토큰을 찾아 쓴다. - 한 사용자가
- * 여러 기기(폰 교체, 재설치 등)를 쓸 수 있으므로 "User 1 : FcmToken 여러 개" 관계로 설계했다.
+ * FCM 푸시 토큰 엔티티. 사용자의 FCM 토큰을 저장해두고 알림 발송 시 대상 토큰을 찾아 쓴다.
+ * 한 사용자가 여러 기기(폰 교체, 재설치 등)를 쓸 수 있어 "User 1 : FcmToken 여러 개" 관계로 설계했다.
  */
 @Entity
 @Table(
@@ -21,25 +21,23 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(
     access =
-        AccessLevel.PROTECTED) // JPA는 기본 생성자가 필요하지만, 외부에서 new로 못 만들게 protected + @Builder만 열어둔다
+        AccessLevel.PROTECTED) // JPA는 기본 생성자가 필요하지만, 외부에서 new로 만들지 못하게 protected로 막고 @Builder만 열어둔다.
 public class FcmToken {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  // 토큰 주인의 User ID만 저장한다 (User를 @ManyToOne으로 직접 물고 있지 않음).
-  // 이 프로젝트의 AttendanceRecord와 같은 방식 - "몇 번 유저 것인지"만 알면 되는 단순 관계는
-  // 연관관계 매핑 대신 ID만 저장하는 편이 지연 로딩/N+1 같은 걸 신경 쓸 필요가 없어 더 가볍다.
+  // 토큰 주인의 User ID만 저장(AttendanceRecord와 같은 패턴). 단순 관계는 연관관계 매핑 없이
+  // ID만 저장하는 편이 지연 로딩/N+1 부담이 없어 더 가볍다.
   @Column(name = "user_id", nullable = false)
   private Long userId;
 
-  // FCM 토큰 값. 앱 재설치나 토큰 갱신 시 값이 바뀐다.
-  // unique 제약을 걸어 같은 토큰이 두 번 저장되는 걸 DB 레벨에서 원천 차단한다.
+  // FCM 토큰 값(앱 재설치나 갱신 시 바뀐다). unique 제약으로 중복 저장을 DB 레벨에서 차단한다.
   @Column(nullable = false, unique = true, length = 255)
   private String token;
 
-  // 어떤 기기에서 온 토큰인지 (AOS/iOS/WEB). 지금은 Android 앱뿐이라 기본값 "AOS", 추후 확장 대비용 필드.
+  // 어떤 기기에서 온 토큰인지 표시(AOS/iOS/WEB). 지금은 Android 앱뿐이라 기본값은 "AOS"이며, 추후 확장을 대비한 필드다.
   @Column(name = "device_type", length = 20)
   private String deviceType;
 
@@ -67,10 +65,7 @@ public class FcmToken {
     updatedAt = LocalDateTime.now();
   }
 
-  /**
-   * 토큰 소유자를 바꾼다. 예: 같은 기기에서 A 계정으로 로그인해 토큰을 등록했다가 로그아웃 후 B 계정으로 다시 로그인한 경우, 토큰 값(기기 단위)은 그대로인데 주인만
-   * A → B로 바뀌어야 한다. 이럴 때 사용.
-   */
+  /** 토큰 소유자 변경. 같은 기기에서 A로 로그인해 등록한 토큰을 로그아웃 후 B로 재로그인했을 때 소유자만 바꾸는 용도로 사용한다. */
   public void reassignTo(Long userId) {
     this.userId = userId;
   }

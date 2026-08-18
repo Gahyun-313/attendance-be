@@ -8,18 +8,17 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-/** 알림 Repository */
+/** 알림에 대한 조회 처리 */
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
-  /** 상태별 필터링 (관리자 알림 관리 화면 - 전체/예약/발송완료/실패) */
+  /** 상태별로 알림 필터링(관리자 알림 관리 화면의 전체/예약/발송완료/실패 필터) */
   Page<Notification> findByStatus(NotificationStatus status, Pageable pageable);
 
   /**
-   * 학생에게 노출 가능한 알림만 조회 - 전체발송(targetGroup null) 또는 본인 그룹 대상 알림 중, 지정한 상태(SENT 고정으로 사용)인 것만. 다른 그룹
-   * 대상이거나 예약/실패/취소 상태인 알림은 학생에게 노출하지 않는다.
-   *
-   * <p>Page<T> 반환 + 괄호(OR)가 섞인 WHERE절 조합은 Spring Data가 count 쿼리를 자동 유추할 때 파라미터를 놓쳐
-   * QueryParameterException이 나는 경우가 있어, countQuery를 명시적으로 같이 지정한다.
+   * 학생에게 노출 가능한 알림만 조회. 전체발송(targetGroup null) 또는 본인 그룹 대상이면서
+   * 지정 상태(SENT 고정)인 알림만 필터링.
+   * countQuery를 명시한 이유는, Page 반환에 OR가 섞인 WHERE절 조합에서 Spring Data가 count 쿼리를
+   * 자동으로 유추할 때 파라미터를 놓쳐 QueryParameterException이 나는 경우가 있기 때문이다.
    */
   @Query(
       value =

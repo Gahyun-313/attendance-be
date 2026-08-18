@@ -15,7 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** NFC 태그 비즈니스 로직 */
+/** NFC 태그 비즈니스 로직 처리 */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -23,7 +23,7 @@ public class NfcTagService {
 
   private final NfcTagRepository nfcTagRepository;
 
-  /** NFC 태그 등록 - organizationId는 등록을 요청한 관리자의 단체로 고정 (다른 단체 태그 노출 방지) */
+  /** NFC 태그 등록. organizationId는 등록을 요청한 관리자의 단체로 고정해 다른 단체 태그 노출을 막는다. */
   @Transactional
   public NfcTagResponse createNfcTag(NfcTagRequest request, Long organizationId) {
     if (nfcTagRepository.existsByUid(request.getUid())) {
@@ -33,12 +33,12 @@ public class NfcTagService {
     return NfcTagResponse.from(savedNfcTag);
   }
 
-  /** NFC 태그 ID로 조회 */
+  /** NFC 태그 ID 조회 */
   public NfcTagResponse getNfcTagById(Long id, Long organizationId) {
     return NfcTagResponse.from(findNfcTagByIdAndOrganization(id, organizationId));
   }
 
-  /** NFC 태그 UID로 조회 */
+  /** NFC 태그 UID 조회 */
   public NfcTagResponse getNfcTagByUid(String uid) {
     NfcTag nfcTag =
         nfcTagRepository
@@ -47,14 +47,14 @@ public class NfcTagService {
     return NfcTagResponse.from(nfcTag);
   }
 
-  /** 단체 내 모든 NFC 태그 조회 (페이징) */
+  /** 단체 내 모든 NFC 태그 페이징 조회 */
   public Page<NfcTagResponse> getAllNfcTags(Long organizationId, Pageable pageable) {
     return nfcTagRepository
         .findByOrganizationId(organizationId, pageable)
         .map(NfcTagResponse::from);
   }
 
-  /** 단체 + 상태별 NFC 태그 조회 (페이징) */
+  /** 단체+상태별 NFC 태그 페이징 조회 */
   public Page<NfcTagResponse> getNfcTagsByStatus(
       NfcTagStatus status, Long organizationId, Pageable pageable) {
     return nfcTagRepository
@@ -62,7 +62,7 @@ public class NfcTagService {
         .map(NfcTagResponse::from);
   }
 
-  /** NFC 태그 검색 (이름 또는 위치) */
+  /** 이름 또는 위치로 NFC 태그 검색 */
   public Page<NfcTagResponse> searchNfcTags(
       String keyword, Long organizationId, Pageable pageable) {
     return nfcTagRepository
@@ -102,16 +102,12 @@ public class NfcTagService {
     nfcTagRepository.delete(nfcTag);
   }
 
-  /** NFC UID 유효성 검증 (출석 체크 시 사용) */
+  /** NFC UID 유효성 검증(출석 체크 시 사용) */
   public boolean isValidNfcTag(String uid) {
     return nfcTagRepository.findByUid(uid).map(NfcTag::isActive).orElse(false);
   }
 
-  /**
-   * ID + organizationId로 NFC 태그를 조회하는 공통 헬퍼 다른 단체 소속이면 존재 자체를 숨기기 위해 동일하게 404(NFC_TAG_NOT_FOUND)로
-   * 처리한다. - UserService.findUserByIdAndOrganization /
-   * SessionService.findSessionByIdAndOrganization과 동일한 패턴
-   */
+  /** ID와 organizationId로 NFC 태그를 조회한다. 다른 단체 소속이면 404로 존재 자체를 숨긴다(UserService/SessionService와 동일 패턴). */
   private NfcTag findNfcTagByIdAndOrganization(Long id, Long organizationId) {
     NfcTag nfcTag =
         nfcTagRepository

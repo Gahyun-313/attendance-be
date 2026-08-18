@@ -9,79 +9,62 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-/**
- * Spring Security UserDetails 구현체 - Spring Security의 인증/인가 처리를 위해 사용자 정보를 제공하는 클래스 - User 엔티티를 래핑하여
- * Spring Security가 요구하는 UserDetails 인터페이스를 구현
- */
+/** Spring Security의 UserDetails 구현체. User 엔티티를 감싸서 인증/인가에 필요한 정보 제공. */
 @Getter
 @RequiredArgsConstructor
 public class CustomUserDetails implements UserDetails {
 
-  /** 실제 사용자 정보를 담고 있는 User 엔티티 */
   private final User user;
 
-  /** 사용자의 권한 목록을 반환 */
   @Override
   public Collection<? extends GrantedAuthority> getAuthorities() {
-    return Collections.singletonList(
-        // User 엔티티의 role에 "ROLE_" 접두사를 붙여 Spring Security의 권한 형식으로 반환
-        new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+    return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
   }
 
-  /** 사용자의 암호화된 비밀번호를 반환 */
   @Override
   public String getPassword() {
     return user.getPassword();
   }
 
-  /** 사용자의 로그인 아이디(username)를 반환 */
   @Override
   public String getUsername() {
     return user.getUsername();
   }
 
-  /** 계정 만료 여부를 확인 */
   @Override
   public boolean isAccountNonExpired() {
-    // 현재는 사용하지 않음 (항상 true)
-    return true;
+    return true; // 현재 미사용
   }
 
-  /** 계정 잠김 여부를 확인 */
   @Override
   public boolean isAccountNonLocked() {
-    // 현재는 사용하지 않음 (항상 true)
-    return true;
+    return true; // 현재 미사용
   }
 
-  /** 비밀번호 만료 여부를 확인 */
   @Override
   public boolean isCredentialsNonExpired() {
-    // 현재는 사용하지 않음 (항상 true)
-    return true;
+    return true; // 현재 미사용
   }
 
-  /** 계정 활성화 여부를 확인 */
   @Override
   public boolean isEnabled() {
-    // 현재는 사용하지 않음 (항상 true)
-    return true;
+    return true; // 현재 미사용
   }
 
-  /** 사용자의 고유 ID를 반환 - UserDetails에는 없는 커스텀 메서드로, 비즈니스 로직에서 사용자 ID가 필요할 때 사용 */
+  /** UserDetails에는 없는 커스텀 필드. 비즈니스 로직에서 사용자 ID가 필요할 때 사용한다. */
   public Long getUserId() {
     return user.getId();
   }
 
-  /** 사용자의 역할(권한) 이름을 반환 - UserDetails에는 없는 커스텀 메서드로, 역할 이름이 필요할 때 사용 */
+  /** UserDetails에는 없는 커스텀 필드. 역할 이름이 필요할 때 사용한다. */
   public String getRole() {
     return user.getRole().name();
   }
 
   /**
-   * 사용자가 소속된 단체 ID를 반환 - UserDetails에는 없는 커스텀 메서드 - 매 요청마다 CustomUserDetailsService가 User를 DB에서 다시
-   * 조회해 담기 때문에, JWT 클레임에 organizationId를 따로 넣지 않아도 항상 최신 값을 얻을 수 있다. - 학생/관리자 생성 시 organizationId를
-   * 채워야 하는 곳(UserController/SessionController)에서 사용
+   * 소속 단체 ID 반환
+   * 매 요청마다 CustomUserDetailsService가 User를 DB에서 다시 조회해 담기 때문에
+   * JWT 클레임에 따로 넣지 않아도 항상 최신 값을 얻는다. 사용자/세션 생성 시 organizationId가 필요한 곳에서 사용한다.
    */
   public Long getOrganizationId() {
     return user.getOrganizationId();

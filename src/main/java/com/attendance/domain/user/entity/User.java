@@ -9,7 +9,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-/** 사용자 엔티티 Spring Security의 UserDetails를 구현하여 인증 시스템과 통합 */
+/** 사용자 엔티티. Spring Security의 UserDetails를 구현해 인증 시스템과 통합한다. */
 @Entity
 @Table(name = "users")
 @Getter
@@ -23,51 +23,51 @@ public class User implements UserDetails {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  // 로그인에 사용되는 고유 아이디
+  // 로그인에 사용하는 고유 아이디
   @Column(nullable = false, unique = true, length = 50)
   private String username;
 
-  // 암호화된 비밀번호 - 소셜 로그인(provider != null) 계정은 비밀번호가 없어 null 가능
+  // 암호화된 비밀번호. 소셜 로그인(provider != null) 계정은 비밀번호가 없어 null일 수 있다.
   @Column private String password;
 
   // 실제 이름
   @Column(nullable = false, length = 100)
   private String name;
 
-  // 이메일 (선택)
+  // 이메일(선택)
   @Column(unique = true, length = 100)
   private String email;
 
-  // 전화번호 (선택)
+  // 전화번호(선택)
   @Column(length = 20)
   private String phone;
 
-  // 사용자 역할 (STUDENT/ADMIN)
+  // 사용자 역할(STUDENT/ADMIN)
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 20)
   private UserRole role;
 
-  // 소속 단체 (Organization FK) - 연관관계 대신 Long으로 저장 (AttendanceRecord.userId와 동일 패턴)
+  // 소속 단체(Organization FK). 연관관계 대신 Long으로 저장한다(AttendanceRecord.userId와 동일 패턴).
   @Column(name = "organization_id", nullable = false)
   private Long organizationId;
 
-  // 소셜 로그인 제공자 (GOOGLE/KAKAO 등) - 비밀번호 로그인 계정은 null
+  // 소셜 로그인 제공자(GOOGLE/KAKAO 등). 비밀번호 로그인 계정은 null이다.
   @Column(length = 20)
   private String provider;
 
-  // 소셜 로그인 제공자가 부여한 사용자 식별자 - 비밀번호 로그인 계정은 null
+  // 소셜 로그인 제공자가 부여한 사용자 식별자. 비밀번호 로그인 계정은 null이다.
   @Column(name = "provider_id", length = 100)
   private String providerId;
 
-  // 학번 (학생 전용, username과 동일 값 가능)
+  // 학번(학생 전용, username과 동일 값일 수 있음)
   @Column(name = "student_id", length = 20)
   private String studentId;
 
-  // 소속 그룹 (예: "A반", "1학년") - 어드민 웹에서 그룹별 필터링/세션 대상 지정에 사용
+  // 소속 그룹(예: "A반", "1학년"). 어드민 웹에서 그룹별 필터링/세션 대상 지정에 사용.
   @Column(name = "group_name", length = 100)
   private String groupName;
 
-  // 비고 - 관리자가 사용자에 대해 남기는 메모
+  // 비고. 관리자가 사용자에 대해 남기는 메모.
   @Column(length = 500)
   private String note;
 
@@ -75,21 +75,21 @@ public class User implements UserDetails {
   @Column(name = "fcm_token", length = 255)
   private String fcmToken;
 
-  // 최초 비밀번호 변경 여부 - 관리자가 생성한 초기 비밀번호를 그대로 쓰고 있는지 추적
+  // 최초 비밀번호 변경 여부. 관리자가 생성한 초기 비밀번호를 그대로 쓰고 있는지 추적.
   @Builder.Default
   @Column(name = "password_changed", nullable = false)
   private Boolean passwordChanged = false;
 
-  // 활성/비활성 상태 - 비활성화된 사용자는 로그인/출석 체크 불가 처리에 사용
+  // 활성/비활성 상태. 비활성화된 사용자는 로그인/출석 체크를 할 수 없다.
   @Builder.Default
   @Column(nullable = false)
   private Boolean active = true;
 
-  // 첫 출석 시각 - 사용자 대시보드 통계(신규 대상자 등)에 사용, 출석 전이면 null
+  // 첫 출석 시각. 사용자 대시보드 통계(신규 대상자 등)에 사용하며, 출석 전이면 null이다.
   @Column(name = "first_attendance_at")
   private LocalDateTime firstAttendanceAt;
 
-  // 계정 활성화 여부 (Spring Security용 - 로그인 가능 여부)
+  // 계정 활성화 여부(Spring Security용, 로그인 가능 여부)
   @Builder.Default
   @Column(nullable = false)
   private Boolean enabled = true;
@@ -102,14 +102,14 @@ public class User implements UserDetails {
   @Column(name = "updated_at")
   private LocalDateTime updatedAt;
 
-  // 엔티티가 처음 저장될 때 자동으로 시간 설정
+  /** 엔티티가 처음 저장될 때 생성/수정 시간 자동 설정 */
   @PrePersist
   protected void onCreate() {
     createdAt = LocalDateTime.now();
     updatedAt = LocalDateTime.now();
   }
 
-  // 엔티티가 업데이트될 때 자동으로 시간 설정
+  /** 엔티티가 업데이트될 때 수정 시간 자동 설정 */
   @PreUpdate
   protected void onUpdate() {
     updatedAt = LocalDateTime.now();
@@ -117,31 +117,31 @@ public class User implements UserDetails {
 
   // === UserDetails 인터페이스 구현 (Spring Security용) ===
 
-  /** 사용자의 권한 목록 반환 ROLE_ 접두사를 붙여서 Spring Security 컨벤션을 따름 */
+  /** 사용자의 권한 목록 반환. ROLE_ 접두사를 붙여 Spring Security 컨벤션을 따른다. */
   @Override
   public Collection<? extends GrantedAuthority> getAuthorities() {
     return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
   }
 
-  /** 계정이 만료되지 않았는지 (true = 만료 안됨) */
+  /** 계정이 만료되지 않았는지 확인(true = 만료 안 됨) */
   @Override
   public boolean isAccountNonExpired() {
     return true;
   }
 
-  /** 계정이 잠기지 않았는지 (true = 잠기지 않음) */
+  /** 계정이 잠기지 않았는지 확인(true = 잠기지 않음) */
   @Override
   public boolean isAccountNonLocked() {
     return true;
   }
 
-  /** 비밀번호가 만료되지 않았는지 (true = 만료 안됨) */
+  /** 비밀번호가 만료되지 않았는지 확인(true = 만료 안 됨) */
   @Override
   public boolean isCredentialsNonExpired() {
     return true;
   }
 
-  /** 계정이 활성화되어 있는지 */
+  /** 계정이 활성화되어 있는지 확인 */
   @Override
   public boolean isEnabled() {
     return enabled;
@@ -149,14 +149,14 @@ public class User implements UserDetails {
 
   // === 도메인 메서드 ===
 
-  /** 첫 출석 처리 - 이미 첫 출석 시각이 기록되어 있다면 변경하지 않음 */
+  /** 첫 출석 기록. 이미 첫 출석 시각이 있으면 변경하지 않는다. */
   public void recordFirstAttendanceIfAbsent(LocalDateTime checkInTime) {
     if (this.firstAttendanceAt == null) {
       this.firstAttendanceAt = checkInTime;
     }
   }
 
-  /** 비밀번호 변경 완료 처리 */
+  /** 비밀번호 변경 완료 상태로 표시 */
   public void markPasswordChanged() {
     this.passwordChanged = true;
   }
@@ -171,7 +171,7 @@ public class User implements UserDetails {
     this.active = false;
   }
 
-  /** 사용자 정보 수정 - null인 필드는 변경하지 않음 (부분 수정 지원) */
+  /** 사용자 정보 수정. null인 필드는 변경하지 않아 부분 수정을 지원한다. */
   public void updateInfo(String name, String email, String groupName, String note) {
     if (name != null) this.name = name;
     if (email != null) this.email = email;
@@ -179,7 +179,7 @@ public class User implements UserDetails {
     if (note != null) this.note = note;
   }
 
-  /** 비밀번호 변경 - 암호화된 비밀번호를 받아 갱신하고, 최초 비밀번호 변경 여부를 true로 표시 */
+  /** 비밀번호 변경. 암호화된 비밀번호를 받아 갱신하고, 최초 비밀번호 변경 여부를 true로 표시 */
   public void changePassword(String encodedPassword) {
     this.password = encodedPassword;
     this.passwordChanged = true;

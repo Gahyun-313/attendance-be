@@ -15,10 +15,8 @@ import org.springframework.web.client.RestTemplate;
 
 /**
  * 카카오 OAuth 사용자 정보 조회
- *
- * <p>카카오는 구글과 달리 ID Token 방식보다 REST API(카카오 로그인 SDK가 발급한 Access Token으로 사용자 정보 API 호출)가 표준적이라,
- * 프론트에서 받은 Access Token으로 카카오 사용자 정보 API를 직접 호출하는 방식을 쓴다. 이메일은 카카오 앱 설정에서 "이메일" 동의항목을 필수로 설정해둬야
- * 내려온다.
+ * 카카오는 ID Token 대신 REST API 방식이 표준이라, 프론트가 받은 Access Token으로 카카오 사용자
+ * 정보 API를 직접 호출한다. 이메일은 카카오 앱 설정에서 "이메일" 동의항목을 필수로 설정해둬야 내려온다.
  */
 @Slf4j
 @Component
@@ -29,8 +27,10 @@ public class KakaoOAuthClient {
 
   private final RestTemplate restTemplate;
 
+  /** Access Token으로 카카오 사용자 정보 API 호출, 사용자 정보 조회 */
   @SuppressWarnings("unchecked")
   public OAuthUserInfo getUserInfo(String accessToken) {
+    // Authorization 헤더에 Access Token을 실어 카카오 사용자 정보 API 호출
     HttpHeaders headers = new HttpHeaders();
     headers.set("Authorization", "Bearer " + accessToken);
     HttpEntity<Void> request = new HttpEntity<>(headers);
@@ -51,14 +51,15 @@ public class KakaoOAuthClient {
 
     String providerId = String.valueOf(response.get("id"));
 
+    // kakao_account에서 이메일 추출. 동의하지 않았으면 단체 조인에 필요한 이메일(username으로도 씀)이
+    // 없어서 인증 실패로 처리한다.
     Map<String, Object> kakaoAccount = (Map<String, Object>) response.get("kakao_account");
     if (kakaoAccount == null || kakaoAccount.get("email") == null) {
-      // 카카오 앱에서 이메일 동의항목이 "선택"이거나 사용자가 미동의한 경우 - 단체 조인에 이메일이
-      // 반드시 필요하므로(username으로 사용) 이 경우는 인증 실패로 처리한다
       throw new BusinessException(ErrorCode.OAUTH_VERIFICATION_FAILED);
     }
     String email = String.valueOf(kakaoAccount.get("email"));
 
+    // properties에 닉네임이 있으면 이름으로 사용, 없으면 이메일 사용
     String name = email;
     Map<String, Object> properties = (Map<String, Object>) response.get("properties");
     if (properties != null && properties.get("nickname") != null) {
