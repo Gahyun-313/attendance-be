@@ -1,0 +1,7 @@
+# 테스트 환경 - H2에는 Flyway(MySQL 전용 SQL) 대신 Hibernate 자동 생성 사용
+spring:
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
