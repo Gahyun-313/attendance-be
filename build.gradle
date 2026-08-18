@@ -45,7 +45,7 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 
 	// Firebase FCM (푸시 알림용)
-	//implementation 'com.google.firebase:firebase-admin:9.2.0'
+	implementation 'com.google.firebase:firebase-admin:9.2.0'
 
 	// Redis 분산 락 (동시성 제어용)
 	implementation 'org.redisson:redisson-spring-boot-starter:4.6.1'
