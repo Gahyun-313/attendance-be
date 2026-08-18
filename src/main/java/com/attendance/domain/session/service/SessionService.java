@@ -3,6 +3,8 @@ package com.attendance.domain.session.service;
 import com.attendance.domain.attendance.service.AttendanceService;
 import com.attendance.domain.nfc.entity.NfcTag;
 import com.attendance.domain.nfc.repository.NfcTagRepository;
+import com.attendance.domain.organization.entity.Organization;
+import com.attendance.domain.organization.repository.OrganizationRepository;
 import com.attendance.domain.session.SessionStatus;
 import com.attendance.domain.session.dto.SessionRequest;
 import com.attendance.domain.session.dto.SessionResponse;
@@ -27,6 +29,7 @@ public class SessionService {
   private final SessionRepository sessionRepository;
   private final NfcTagRepository nfcTagRepository;
   private final AttendanceService attendanceService;
+  private final OrganizationRepository organizationRepository;
 
   /**
    * 세션 생성
@@ -129,7 +132,10 @@ public class SessionService {
   public SessionResponse closeSession(Long sessionId, Long organizationId) {
     AttendanceSession session = findSessionByIdAndOrganization(sessionId, organizationId);
     session.close();
-    attendanceService.markAbsentForRemainingWaiting(sessionId);
+    // 단체 설정(autoAbsentEnable)이 꺼져 있으면 남은 WAITING을 그대로 두고 관리자가 수동으로 처리하게 함
+    if (isAutoAbsentEnable(organizationId)) {
+      attendanceService.markAbsentForRemainingWaiting(sessionId);
+    }
     return SessionResponse.from(session);
   }
 
@@ -169,6 +175,14 @@ public class SessionService {
       throw new EntityNotFoundException(ErrorCode.SESSION_NOT_FOUND);
     }
     return session;
+  }
+
+  /** 단체의 "결석 자동 처리" 정책 조회 - 단체를 못 찾는 경우 기본값 true 설정 */
+  private boolean isAutoAbsentEnable(Long organizationId) {
+    return organizationRepository
+        .findById(organizationId)
+        .map(Organization::getAutoAbsentEnabled)
+        .orElse(true);
   }
 
   /** NFC 태그 ID로 태그 조회 (null이면 null 반환) */
