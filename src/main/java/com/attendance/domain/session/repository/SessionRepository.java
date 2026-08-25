@@ -7,6 +7,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -104,4 +105,22 @@ public interface SessionRepository extends JpaRepository<AttendanceSession, Long
   /** 단체 내 최근 완료된 세션 N건 조회. 대시보드의 최근 출석률 트렌드 집계에 사용. */
   List<AttendanceSession> findByOrganizationIdAndStatusOrderBySessionDateDesc(
       Long organizationId, SessionStatus status, Pageable pageable);
+
+  /** 그룹명 일괄 변경. 그룹 이름 수정 시 해당 그룹을 대상으로 하는 세션들의 문자열 groupName을 동기화하는 데 사용한다. */
+  @Modifying(clearAutomatically = true)
+  @Query(
+      "UPDATE AttendanceSession s SET s.groupName = :newName "
+          + "WHERE s.organizationId = :organizationId AND s.groupName = :oldName")
+  int renameGroupName(
+      @Param("organizationId") Long organizationId,
+      @Param("oldName") String oldName,
+      @Param("newName") String newName);
+
+  /** 그룹명 일괄 초기화(null). 그룹 삭제 시 해당 그룹을 대상으로 하던 세션을 무소속 상태로 되돌리는 데 사용한다. */
+  @Modifying(clearAutomatically = true)
+  @Query(
+      "UPDATE AttendanceSession s SET s.groupName = NULL "
+          + "WHERE s.organizationId = :organizationId AND s.groupName = :groupName")
+  int clearGroupName(
+      @Param("organizationId") Long organizationId, @Param("groupName") String groupName);
 }
