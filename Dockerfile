@@ -26,6 +26,9 @@ COPY --from=build /app/build/libs/*.jar app.jar
 
 EXPOSE 8080
 
+# 컨테이너 기본 타임존이 UTC라서 LocalDate.now() 등 날짜 판정 로직이 KST 기준 서비스 시간과 어긋나므로 고정한다.
+ENV TZ=Asia/Seoul
+
 # 기본 프로파일은 prod(컨테이너 실행용, application-prod.yml)
 # docker-compose나 AWS에서 필요하면 이 값을 환경변수로 덮어쓸 수 있다.
 ENV SPRING_PROFILES_ACTIVE=prod

@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.attendance.domain.group.repository.GroupRepository;
 import com.attendance.domain.user.dto.ChangePasswordRequest;
 import com.attendance.domain.user.dto.CreateUserRequest;
 import com.attendance.domain.user.dto.UserResponse;
@@ -50,6 +51,7 @@ class UserServiceTest {
   @Mock private UserRepository userRepository;
 
   @Mock private PasswordEncoder passwordEncoder;
+  @Mock private GroupRepository groupRepository;
   @InjectMocks private UserService userService;
 
   @Nested
@@ -109,6 +111,7 @@ class UserServiceTest {
       // email은 선택값이므로 null로 요청할 수 있다
       request = new CreateUserRequest("20260003", "password1234", null, "이영희", "B반", null);
       given(userRepository.existsByUsername("20260003")).willReturn(false);
+      given(groupRepository.existsByOrganizationIdAndName(1L, "B반")).willReturn(true);
       given(passwordEncoder.encode("password1234")).willReturn("encoded-password");
 
       // save() 이후 반환될 저장 완료 User
@@ -379,6 +382,7 @@ class UserServiceTest {
               .build();
       UserUpdateRequest request = new UserUpdateRequest(null, "new-name", "new-group", null);
       given(userRepository.findById(1L)).willReturn(Optional.of(user));
+      given(groupRepository.existsByOrganizationIdAndName(1L, "new-group")).willReturn(true);
 
       // when
       userService.updateUser(1L, request, 1L);

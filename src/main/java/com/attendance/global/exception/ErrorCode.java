@@ -65,7 +65,11 @@ public enum ErrorCode {
   SOCIAL_ACCOUNT_NO_PASSWORD(HttpStatus.BAD_REQUEST, "O007", "소셜 로그인 전용 계정은 비밀번호 재설정 대상이 아닙니다"),
 
   // 단체
-  ORGANIZATION_NOT_FOUND(HttpStatus.NOT_FOUND, "0008", "단체 정보를 찾을 수 없습니다.");
+  ORGANIZATION_NOT_FOUND(HttpStatus.NOT_FOUND, "0008", "단체 정보를 찾을 수 없습니다."),
+
+  // 그룹
+  GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "G001", "그룹을 찾을 수 없습니다"),
+  DUPLICATE_GROUP_NAME(HttpStatus.CONFLICT, "G002", "이미 존재하는 그룹명입니다");
 
   private final HttpStatus status;
   private final String code;

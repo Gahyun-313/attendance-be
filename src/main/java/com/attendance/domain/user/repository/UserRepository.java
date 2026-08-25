@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -101,4 +102,22 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
   /** 특정 역할의 사용자 전체 조회. 알림 전체발송 시 대상자 조회에 사용. */
   List<User> findByRole(UserRole role);
+
+  /** 그룹명 일괄 변경. 그룹 이름 수정 시 소속 사용자들의 문자열 groupName을 동기화하는 데 사용한다. */
+  @Modifying(clearAutomatically = true)
+  @Query(
+      "UPDATE User u SET u.groupName = :newName "
+          + "WHERE u.organizationId = :organizationId AND u.groupName = :oldName")
+  int renameGroupName(
+      @Param("organizationId") Long organizationId,
+      @Param("oldName") String oldName,
+      @Param("newName") String newName);
+
+  /** 그룹명 일괄 초기화(null). 그룹 삭제 시 소속 사용자를 무소속 상태로 되돌리는 데 사용한다. */
+  @Modifying(clearAutomatically = true)
+  @Query(
+      "UPDATE User u SET u.groupName = NULL "
+          + "WHERE u.organizationId = :organizationId AND u.groupName = :groupName")
+  int clearGroupName(
+      @Param("organizationId") Long organizationId, @Param("groupName") String groupName);
 }

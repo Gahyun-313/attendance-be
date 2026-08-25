@@ -1,6 +1,7 @@
 package com.attendance.domain.session.service;
 
 import com.attendance.domain.attendance.service.AttendanceService;
+import com.attendance.domain.group.repository.GroupRepository;
 import com.attendance.domain.nfc.entity.NfcTag;
 import com.attendance.domain.nfc.repository.NfcTagRepository;
 import com.attendance.domain.organization.entity.Organization;
@@ -30,11 +31,13 @@ public class SessionService {
   private final NfcTagRepository nfcTagRepository;
   private final AttendanceService attendanceService;
   private final OrganizationRepository organizationRepository;
+  private final GroupRepository groupRepository;
 
   /** 세션 생성. organizationId는 요청 바디로 받지 않고 생성한 관리자의 인증 정보에서 가져온다. */
   @Transactional
   public SessionResponse createSession(
       SessionRequest request, Long createdBy, Long organizationId) {
+    validateGroupName(request.getGroupName(), organizationId);
     // 선택 항목인 NFC 태그 연결
     NfcTag nfcTag = resolveNfcTag(request.getNfcTagId());
 
@@ -80,6 +83,7 @@ public class SessionService {
         || session.getStatus() == SessionStatus.CANCELED) {
       throw new BusinessException(ErrorCode.SESSION_ALREADY_CLOSED);
     }
+    validateGroupName(request.getGroupName(), organizationId);
 
     NfcTag nfcTag = resolveNfcTag(request.getNfcTagId());
 
@@ -179,5 +183,13 @@ public class SessionService {
     return nfcTagRepository
         .findById(nfcTagId)
         .orElseThrow(() -> new EntityNotFoundException(ErrorCode.NFC_TAG_NOT_FOUND));
+  }
+
+  /** groupName이 그룹 마스터에 존재하는 값인지 검증한다. null(그룹 미지정)이면 검증을 건너뛴다. */
+  private void validateGroupName(String groupName, Long organizationId) {
+    if (groupName != null
+        && !groupRepository.existsByOrganizationIdAndName(organizationId, groupName)) {
+      throw new EntityNotFoundException(ErrorCode.GROUP_NOT_FOUND);
+    }
   }
 }

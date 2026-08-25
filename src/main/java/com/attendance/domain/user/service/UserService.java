@@ -2,6 +2,7 @@ package com.attendance.domain.user.service;
 
 import com.attendance.domain.attendance.entity.AttendanceStatus;
 import com.attendance.domain.attendance.repository.AttendanceRepository;
+import com.attendance.domain.group.repository.GroupRepository;
 import com.attendance.domain.user.dto.*;
 import com.attendance.domain.user.entity.User;
 import com.attendance.domain.user.entity.UserRole;
@@ -31,6 +32,7 @@ public class UserService {
   private final UserRepository userRepository;
   private final AttendanceRepository attendanceRepository;
   private final PasswordEncoder passwordEncoder;
+  private final GroupRepository groupRepository;
 
   /** 학생 계정 생성(ADMIN). 관리자가 만드는 계정은 항상 STUDENT로 고정한다. */
   @Transactional
@@ -41,6 +43,7 @@ public class UserService {
     if (request.getEmail() != null && userRepository.existsByEmail(request.getEmail())) {
       throw new DuplicateException(ErrorCode.DUPLICATE_EMAIL);
     }
+    validateGroupName(request.getGroupName(), organizationId);
 
     String encodedPassword = passwordEncoder.encode(request.getPassword());
     // organizationId는 요청 바디로 받지 않고, 생성 요청을 보낸 관리자가 속한 단체로 고정한다.
@@ -119,6 +122,7 @@ public class UserService {
         && userRepository.existsByEmail(request.getEmail())) {
       throw new DuplicateException(ErrorCode.DUPLICATE_EMAIL);
     }
+    validateGroupName(request.getGroupName(), organizationId);
 
     user.updateInfo(
         request.getName(), request.getEmail(), request.getGroupName(), request.getNote());
@@ -166,5 +170,13 @@ public class UserService {
       throw new EntityNotFoundException(ErrorCode.USER_NOT_FOUND);
     }
     return user;
+  }
+
+  /** groupName이 그룹 마스터에 존재하는 값인지 검증한다. null(그룹 미지정)이면 검증을 건너뛴다. */
+  private void validateGroupName(String groupName, Long organizationId) {
+    if (groupName != null
+        && !groupRepository.existsByOrganizationIdAndName(organizationId, groupName)) {
+      throw new EntityNotFoundException(ErrorCode.GROUP_NOT_FOUND);
+    }
   }
 }
