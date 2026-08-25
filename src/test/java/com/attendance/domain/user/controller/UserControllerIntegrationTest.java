@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.attendance.domain.group.entity.Group;
+import com.attendance.domain.group.repository.GroupRepository;
 import com.attendance.domain.user.entity.User;
 import com.attendance.domain.user.entity.UserRole;
 import com.attendance.domain.user.repository.UserRepository;
@@ -39,6 +41,7 @@ class UserControllerIntegrationTest {
   @Autowired private MockMvc mockMvc;
   @Autowired private UserRepository userRepository;
   @Autowired private JwtTokenProvider jwtTokenProvider;
+  @Autowired private GroupRepository groupRepository;
 
   private String tokenFor(User user) {
     // 실제 로그인 과정을 거치지 않고, 저장된 사용자 정보로 바로 유효한 토큰을 발급 (테스트 편의)
@@ -78,6 +81,8 @@ class UserControllerIntegrationTest {
       // given
       // ADMIN 권한을 가진 사용자가 새 학생 계정 생성을 요청하는 상황
       User admin = saveAdmin();
+      // 그룹 마스터 검증(G001) 추가로, 요청하는 groupName이 사전에 등록돼 있어야 정상 생성된다 (2026-08-25)
+      groupRepository.save(Group.builder().organizationId(1L).name("A반").build());
       String requestBody =
           """
               {"username":"20260002","password":"password1234","name":"홍길동","groupName":"A반"}
