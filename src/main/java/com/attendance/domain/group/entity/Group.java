@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 /** 그룹 마스터 엔티티. User/Session의 문자열 groupName이 실제 존재하는 값인지 검증하는 기준 목록으로 사용한다. */
 @Entity
 @Table(
-    name = "groups",
+    name = "groups_master",
     uniqueConstraints =
         @UniqueConstraint(
             name = "uk_groups_organization_name",
