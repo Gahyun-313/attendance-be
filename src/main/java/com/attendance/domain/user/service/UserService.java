@@ -2,6 +2,7 @@ package com.attendance.domain.user.service;
 
 import com.attendance.domain.attendance.entity.AttendanceStatus;
 import com.attendance.domain.attendance.repository.AttendanceRepository;
+import com.attendance.domain.attendance.service.AttendanceService;
 import com.attendance.domain.group.repository.GroupRepository;
 import com.attendance.domain.user.dto.*;
 import com.attendance.domain.user.entity.User;
@@ -31,6 +32,7 @@ public class UserService {
 
   private final UserRepository userRepository;
   private final AttendanceRepository attendanceRepository;
+  private final AttendanceService attendanceService;
   private final PasswordEncoder passwordEncoder;
   private final GroupRepository groupRepository;
 
@@ -49,6 +51,10 @@ public class UserService {
     // organizationId는 요청 바디로 받지 않고, 생성 요청을 보낸 관리자가 속한 단체로 고정한다.
     User user = request.toEntity(encodedPassword, organizationId);
     User savedUser = userRepository.save(user);
+
+    // 이미 종료된 세션이 있는 그룹으로 배정된 경우, 그 세션들에 결석으로 소급 처리한다.
+    attendanceService.backfillAbsentForCompletedSessions(
+        savedUser.getId(), savedUser.getGroupName(), organizationId);
 
     return UserResponse.from(savedUser);
   }
@@ -124,8 +130,19 @@ public class UserService {
     }
     validateGroupName(request.getGroupName(), organizationId);
 
+    // 그룹 변경 여부를 판단하기 위해 수정 전 groupName을 미리 저장해둔다.
+    String previousGroupName = user.getGroupName();
     user.updateInfo(
         request.getName(), request.getEmail(), request.getGroupName(), request.getNote());
+
+    // 새 그룹으로 옮겨진 경우, 이미 종료된 그 그룹의 세션들에 결석으로 소급 처리한다.
+    boolean groupChanged =
+        request.getGroupName() != null && !request.getGroupName().equals(previousGroupName);
+    if (groupChanged && user.getRole() == UserRole.STUDENT) {
+      attendanceService.backfillAbsentForCompletedSessions(
+          user.getId(), user.getGroupName(), organizationId);
+    }
+
     return UserResponse.from(user);
   }
 
