@@ -358,9 +358,9 @@ public class AttendanceService {
   public List<RecentAttendanceResponse> getRecentAttendances(Long organizationId, int limit) {
     int safeLimit = Math.max(RECENT_MIN_LIMIT, Math.min(limit, RECENT_MAX_LIMIT));
 
-    // 단체 내 최근 체크인 기록 조회
+    // 단체 내 최근 출석 활동 조회 (실제 체크인 + 관리자 수동 수정/시스템 자동 결석 처리 포함)
     List<AttendanceRecord> records =
-        attendanceRepository.findRecentCheckInsByOrganizationId(
+        attendanceRepository.findRecentAttendanceActivityByOrganizationId(
             organizationId, PageRequest.of(0, safeLimit));
 
     // 사용자/세션을 각각 한 번에 조회한 뒤 Map으로 연결
