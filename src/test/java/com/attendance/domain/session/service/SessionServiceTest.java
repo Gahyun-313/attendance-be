@@ -34,12 +34,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
  * SessionService 단위 테스트
  *
  * <p>Spring Context나 실제 DB를 띄우지 않고, Mockito로 Repository/Service들을 대체한다. SessionAutoCloseScheduler가
- * 호출하는 배치 전용 메서드(findExpiredActiveSessionIds/autoCloseSession/findExpiredScheduledSessionIds/autoCancelSession)만
+ * 호출하는 배치 전용
+ * 메서드(findExpiredActiveSessionIds/autoCloseSession/findExpiredScheduledSessionIds/autoCancelSession)만
  * 검증 대상으로 삼는다 - 기존 CRUD 메서드들은 이번 변경과 무관해 범위에서 제외한다.
  *
- * <p>검증하는 주요 정책: - 종료 시각이 지난 ACTIVE/SCHEDULED 세션 ID를 배치가 그대로 넘겨받는다 - ACTIVE 세션 자동 종료 시
- * 단체의 autoAbsentEnabled 설정(및 단체를 못 찾았을 때의 기본값 true)에 따라 자동 결석 처리 여부가 갈린다 - SCHEDULED 세션은 결석 처리 없이
- * 취소만 된다 - 존재하지 않는 세션 ID로 호출하면 EntityNotFoundException
+ * <p>검증하는 주요 정책: - 종료 시각이 지난 ACTIVE/SCHEDULED 세션 ID를 배치가 그대로 넘겨받는다 - ACTIVE 세션 자동 종료 시 단체의
+ * autoAbsentEnabled 설정(및 단체를 못 찾았을 때의 기본값 true)에 따라 자동 결석 처리 여부가 갈린다 - SCHEDULED 세션은 결석 처리 없이 취소만
+ * 된다 - 존재하지 않는 세션 ID로 호출하면 EntityNotFoundException
  */
 @ExtendWith(MockitoExtension.class)
 class SessionServiceTest {
@@ -87,7 +88,9 @@ class SessionServiceTest {
     @Test
     @DisplayName("종료 시각이 지난 ACTIVE 세션들의 ID 목록을 반환한다")
     void returnsIdsOfExpiredActiveSessions() {
-      given(sessionRepository.findByStatusAndEndTimeBefore(eq(SessionStatus.ACTIVE), any(LocalDateTime.class)))
+      given(
+              sessionRepository.findByStatusAndEndTimeBefore(
+                  eq(SessionStatus.ACTIVE), any(LocalDateTime.class)))
           .willReturn(List.of(activeSession));
 
       List<Long> result = sessionService.findExpiredActiveSessionIds();
@@ -103,7 +106,8 @@ class SessionServiceTest {
     @Test
     @DisplayName("단체의 자동 결석 처리 설정이 켜져 있으면 세션을 종료하고 남은 WAITING을 결석 처리한다")
     void closesSessionAndMarksAbsent_whenAutoAbsentEnabled() {
-      Organization organization = Organization.builder().name("테스트 단체").code("CODE1").active(true).build();
+      Organization organization =
+          Organization.builder().name("테스트 단체").code("CODE1").active(true).build();
       given(sessionRepository.findById(1L)).willReturn(Optional.of(activeSession));
       given(organizationRepository.findById(10L)).willReturn(Optional.of(organization));
 
@@ -116,7 +120,8 @@ class SessionServiceTest {
     @Test
     @DisplayName("단체의 자동 결석 처리 설정이 꺼져 있으면 세션은 종료하되 결석 처리는 건너뛴다")
     void closesSessionButSkipsAbsent_whenAutoAbsentDisabled() {
-      Organization organization = Organization.builder().name("테스트 단체").code("CODE2").active(true).build();
+      Organization organization =
+          Organization.builder().name("테스트 단체").code("CODE2").active(true).build();
       organization.updatePolicy(false, null, null, null);
       given(sessionRepository.findById(1L)).willReturn(Optional.of(activeSession));
       given(organizationRepository.findById(10L)).willReturn(Optional.of(organization));
@@ -156,7 +161,9 @@ class SessionServiceTest {
     @Test
     @DisplayName("시작 없이 종료 시각이 지난 SCHEDULED 세션들의 ID 목록을 반환한다")
     void returnsIdsOfExpiredScheduledSessions() {
-      given(sessionRepository.findByStatusAndEndTimeBefore(eq(SessionStatus.SCHEDULED), any(LocalDateTime.class)))
+      given(
+              sessionRepository.findByStatusAndEndTimeBefore(
+                  eq(SessionStatus.SCHEDULED), any(LocalDateTime.class)))
           .willReturn(List.of(scheduledSession));
 
       List<Long> result = sessionService.findExpiredScheduledSessionIds();

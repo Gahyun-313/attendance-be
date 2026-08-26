@@ -6,10 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * 종료 시각이 지난 세션을 자동으로 정리하는 배치.
- * ACTIVE는 종료 처리 후 자동 결석 처리, 시작 안 된 SCHEDULED는 자동 취소한다.
- */
+/** 종료 시각이 지난 세션을 자동으로 정리하는 배치. ACTIVE는 종료 처리 후 자동 결석 처리, 시작 안 된 SCHEDULED는 자동 취소한다. */
 @Slf4j
 @Component
 @RequiredArgsConstructor
