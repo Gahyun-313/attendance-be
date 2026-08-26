@@ -66,13 +66,15 @@ public interface AttendanceRepository extends JpaRepository<AttendanceRecord, Lo
   long countByUserIdAndStatus(Long userId, AttendanceStatus status);
 
   /**
-   * 단체 내 최근 체크인 기록 N건 조회(세션 구분 없음). WAITING은 checkInTime이 없어 자연히 제외되며, 체크인 시각 내림차순으로 최신 N건만 가져온다.
+   * 단체 내 최근 출석 활동 N건 조회(세션 구분 없음). 실제 체크인(checkInTime)뿐 아니라 관리자 수동 수정/시스템 자동 결석 처리처럼 checkInTime 없이
+   * 상태만 바뀐 기록도 포함한다(생성만 되고 아무 변화 없는 WAITING만 제외). 정렬 기준은 체크인 시각이 있으면 그 값, 없으면 마지막 수정
+   * 시각(updatedAt)이다.
    */
   @Query(
       "SELECT a FROM AttendanceRecord a "
-          + "WHERE a.checkInTime IS NOT NULL "
+          + "WHERE (a.checkInTime IS NOT NULL OR a.modifiedBy IS NOT NULL) "
           + "AND a.sessionId IN (SELECT s.id FROM AttendanceSession s WHERE s.organizationId = :organizationId) "
-          + "ORDER BY a.checkInTime DESC")
-  List<AttendanceRecord> findRecentCheckInsByOrganizationId(
+          + "ORDER BY COALESCE(a.checkInTime, a.updatedAt) DESC")
+  List<AttendanceRecord> findRecentAttendanceActivityByOrganizationId(
       @Param("organizationId") Long organizationId, Pageable pageable);
 }
