@@ -99,6 +99,13 @@ public interface SessionRepository extends JpaRepository<AttendanceSession, Long
   /** 단체 내 날짜별 세션 수 조회. 대시보드 통계의 오늘 세션 수 집계에 사용. */
   long countByOrganizationIdAndSessionDate(Long organizationId, LocalDate sessionDate);
 
+  /**
+   * 단체 내 특정 날짜+상태(복수) 세션 목록 조회. 오늘 출석률/상태분포/시간대별 추이 집계에 사용하며, 진행 중(ACTIVE)인 세션의 출석 데이터도 실시간 집계에
+   * 포함하기 위해 상태를 복수로 받는다.
+   */
+  List<AttendanceSession> findByOrganizationIdAndSessionDateAndStatusIn(
+      Long organizationId, LocalDate sessionDate, List<SessionStatus> statuses);
+
   /** 단체 내 그룹별+상태별 세션 목록 조회. 대시보드 통계의 그룹별 출석률 집계에 사용. */
   List<AttendanceSession> findByOrganizationIdAndGroupNameAndStatus(
       Long organizationId, String groupName, SessionStatus status);

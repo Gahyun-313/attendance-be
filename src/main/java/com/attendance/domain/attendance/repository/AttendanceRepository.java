@@ -64,4 +64,15 @@ public interface AttendanceRepository extends JpaRepository<AttendanceRecord, Lo
 
   /** 사용자별 특정 상태 레코드 수 조회. 사용자 통계의 출석/지각/결석 건수 집계에 사용. */
   long countByUserIdAndStatus(Long userId, AttendanceStatus status);
+
+  /**
+   * 단체 내 최근 체크인 기록 N건 조회(세션 구분 없음). WAITING은 checkInTime이 없어 자연히 제외되며, 체크인 시각 내림차순으로 최신 N건만 가져온다.
+   */
+  @Query(
+      "SELECT a FROM AttendanceRecord a "
+          + "WHERE a.checkInTime IS NOT NULL "
+          + "AND a.sessionId IN (SELECT s.id FROM AttendanceSession s WHERE s.organizationId = :organizationId) "
+          + "ORDER BY a.checkInTime DESC")
+  List<AttendanceRecord> findRecentCheckInsByOrganizationId(
+      @Param("organizationId") Long organizationId, Pageable pageable);
 }

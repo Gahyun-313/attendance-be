@@ -4,6 +4,7 @@ import com.attendance.domain.attendance.dto.AttendanceDashboardResponse;
 import com.attendance.domain.attendance.dto.AttendanceResponse;
 import com.attendance.domain.attendance.dto.AttendanceStatusUpdateRequest;
 import com.attendance.domain.attendance.dto.CheckInRequest;
+import com.attendance.domain.attendance.dto.RecentAttendanceResponse;
 import com.attendance.domain.attendance.service.AttendanceService;
 import com.attendance.global.response.ApiResponse;
 import com.attendance.global.security.CustomUserDetails;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** 출석 기록 관리 API 제공 */
@@ -100,5 +102,16 @@ public class AttendanceController {
     AttendanceDashboardResponse response =
         attendanceService.getSessionDashboard(sessionId, userDetails.getOrganizationId());
     return ResponseEntity.ok(ApiResponse.success(response, "출석 대시보드 조회 성공"));
+  }
+
+  /** 세션 구분 없이 최근 체크인 기록 조회(ADMIN 전용). limit 기본값 10, 1~50으로 clamp된다. */
+  @PreAuthorize("hasRole('ADMIN')")
+  @GetMapping("/recent")
+  public ResponseEntity<ApiResponse<List<RecentAttendanceResponse>>> getRecentAttendances(
+      @RequestParam(defaultValue = "10") int limit,
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    List<RecentAttendanceResponse> response =
+        attendanceService.getRecentAttendances(userDetails.getOrganizationId(), limit);
+    return ResponseEntity.ok(ApiResponse.success(response, "최근 출석 기록 조회 성공"));
   }
 }
