@@ -5,6 +5,7 @@ import com.attendance.domain.attendance.dto.AttendanceDashboardResponse;
 import com.attendance.domain.attendance.dto.AttendanceResponse;
 import com.attendance.domain.attendance.dto.AttendanceStatusUpdateRequest;
 import com.attendance.domain.attendance.dto.CheckInRequest;
+import com.attendance.domain.attendance.dto.RecentAttendanceResponse;
 import com.attendance.domain.attendance.entity.AttendanceRecord;
 import com.attendance.domain.attendance.entity.AttendanceStatus;
 import com.attendance.domain.attendance.event.AttendanceCheckedInEvent;
@@ -32,7 +33,9 @@ import com.attendance.global.exception.ErrorCode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RLock;
@@ -42,6 +45,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -58,6 +62,8 @@ public class AttendanceService {
   // 체크인 분산 락 설정값. 근거는 findOrCreateRecordWithLock() 참고.
   private static final String LOCK_KEY_PREFIX = "lock:checkin:";
   private static final long LOCK_WAIT_SECONDS = 3L;
+  private static final int RECENT_MIN_LIMIT = 1;
+  private static final int RECENT_MAX_LIMIT = 50;
 
   private final AttendanceRepository attendanceRepository;
   private final SessionRepository sessionRepository;
@@ -343,6 +349,40 @@ public class AttendanceService {
             .orElseThrow(() -> new EntityNotFoundException(ErrorCode.ATTENDANCE_NOT_FOUND));
     User user = userRepository.findById(attendanceRecord.getUserId()).orElse(null);
     return AttendanceResponse.from(attendanceRecord, user);
+  }
+
+  /**
+   * 최근 체크인 기록 N건 조회(ADMIN, 세션 구분 없음). 사용자/세션명을 레코드마다 반복 조회하면 N+1 쿼리가 발생하므로 필요한 사용자와 세션을 각각 한 번에 조회한
+   * 뒤 Map으로 연결한다.
+   */
+  public List<RecentAttendanceResponse> getRecentAttendances(Long organizationId, int limit) {
+    int safeLimit = Math.max(RECENT_MIN_LIMIT, Math.min(limit, RECENT_MAX_LIMIT));
+
+    // 단체 내 최근 체크인 기록 조회
+    List<AttendanceRecord> records =
+        attendanceRepository.findRecentCheckInsByOrganizationId(
+            organizationId, PageRequest.of(0, safeLimit));
+
+    // 사용자/세션을 각각 한 번에 조회한 뒤 Map으로 연결
+    Set<Long> userIds =
+        records.stream().map(AttendanceRecord::getUserId).collect(Collectors.toSet());
+    Map<Long, User> userMap =
+        userRepository.findAllById(userIds).stream()
+            .collect(Collectors.toMap(User::getId, Function.identity()));
+
+    Set<Long> sessionIds =
+        records.stream().map(AttendanceRecord::getSessionId).collect(Collectors.toSet());
+    Map<Long, AttendanceSession> sessionMap =
+        sessionRepository.findAllById(sessionIds).stream()
+            .collect(Collectors.toMap(AttendanceSession::getId, Function.identity()));
+
+    // 응답 DTO 변환
+    return records.stream()
+        .map(
+            record ->
+                RecentAttendanceResponse.of(
+                    record, userMap.get(record.getUserId()), sessionMap.get(record.getSessionId())))
+        .toList();
   }
 
   /** 세션 시작 시 대상 그룹 학생 전원에게 WAITING 레코드를 미리 생성한다. 그룹 미지정이면 스킵하고, 중복 호출돼도 안전하다. */
