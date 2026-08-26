@@ -14,6 +14,7 @@ import com.attendance.domain.session.repository.SessionRepository;
 import com.attendance.global.exception.BusinessException;
 import com.attendance.global.exception.EntityNotFoundException;
 import com.attendance.global.exception.ErrorCode;
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -149,6 +150,43 @@ public class SessionService {
     return sessionRepository.findActiveSessions(organizationId).stream()
         .map(SessionResponse::from)
         .toList();
+  }
+
+  // 스케줄러(SessionAutoCloseScheduler) 전용 - organizationId 검증 없이 전체 단체 대상으로 동작한다.
+
+  /** 종료 시각이 지난 ACTIVE 세션 ID 조회(전체 단체 대상) */
+  public List<Long> findExpiredActiveSessionIds() {
+    return sessionRepository
+        .findByStatusAndEndTimeBefore(SessionStatus.ACTIVE, LocalDateTime.now())
+        .stream()
+        .map(AttendanceSession::getId)
+        .toList();
+  }
+
+  /** 세션 자동 종료 + 단체 설정에 따라 자동 결석 처리 (배치 전용) */
+  @Transactional
+  public void autoCloseSession(Long sessionId) {
+    AttendanceSession session = findSessionById(sessionId);
+    session.close();
+    if (isAutoAbsentEnable(session.getOrganizationId())) {
+      attendanceService.markAbsentForRemainingWaiting(sessionId);
+    }
+  }
+
+  /** 시작 안 된 채 종료 시각이 지난 SCHEDULED 세션 ID 조회(전체 단체 대상) */
+  public List<Long> findExpiredScheduledSessionIds() {
+    return sessionRepository
+        .findByStatusAndEndTimeBefore(SessionStatus.SCHEDULED, LocalDateTime.now())
+        .stream()
+        .map(AttendanceSession::getId)
+        .toList();
+  }
+
+  /** 시작 안 된 세션 자동 취소 (배치 전용) */
+  @Transactional
+  public void autoCancelSession(Long sessionId) {
+    AttendanceSession session = findSessionById(sessionId);
+    session.cancel();
   }
 
   // 내부 유틸

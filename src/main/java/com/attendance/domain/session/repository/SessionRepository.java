@@ -3,6 +3,7 @@ package com.attendance.domain.session.repository;
 import com.attendance.domain.session.SessionStatus;
 import com.attendance.domain.session.entity.AttendanceSession;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -115,6 +116,9 @@ public interface SessionRepository extends JpaRepository<AttendanceSession, Long
       @Param("organizationId") Long organizationId,
       @Param("oldName") String oldName,
       @Param("newName") String newName);
+
+  /** 배치(스케줄러) 전용 - 상태/종료시각 기준 세션 조회, 단체 격리 없음 */
+  List<AttendanceSession> findByStatusAndEndTimeBefore(SessionStatus status, LocalDateTime endTime);
 
   /** 그룹명 일괄 초기화(null). 그룹 삭제 시 해당 그룹을 대상으로 하던 세션을 무소속 상태로 되돌리는 데 사용한다. */
   @Modifying(clearAutomatically = true)
