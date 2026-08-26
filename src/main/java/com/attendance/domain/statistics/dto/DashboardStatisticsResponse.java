@@ -27,5 +27,5 @@ public class DashboardStatisticsResponse {
   private long todayLateCount;
   private long todayAbsentCount;
   private long todayWaitingCount;
-  private List<HourlyCheckInCount> hourlyCheckInTrend; // 오늘 09~21시 시간대별 체크인 건수
+  private List<HourlyCheckInCount> hourlyCheckInTrend; // 오늘 0~23시(하루 전체) 시간대별 체크인 건수
 }
