@@ -16,6 +16,7 @@ import com.attendance.domain.nfc.repository.NfcTagRepository;
 import com.attendance.domain.organization.entity.Organization;
 import com.attendance.domain.organization.repository.OrganizationRepository;
 // session
+import com.attendance.domain.session.SessionStatus;
 import com.attendance.domain.session.entity.AttendanceSession;
 import com.attendance.domain.session.repository.SessionRepository;
 // user
@@ -376,6 +377,30 @@ public class AttendanceService {
     }
     // 대시보드 숫자가 크게 바뀌는 시점이므로 캐시를 즉시 비운다.
     evictSessionDashboard(sessionId);
+  }
+
+  /** 세션 종료 후 그룹에 새로 배정된 학생을 위해, 해당 그룹의 이미 COMPLETED된 세션에 결석 레코드를 소급 생성한다. */
+  @Transactional
+  public void backfillAbsentForCompletedSessions(
+      Long userId, String groupName, Long organizationId) {
+    if (groupName == null) {
+      return;
+    }
+    List<AttendanceSession> completedSessions =
+        sessionRepository.findByOrganizationIdAndGroupNameAndStatus(
+            organizationId, groupName, SessionStatus.COMPLETED);
+    for (AttendanceSession session : completedSessions) {
+      if (!attendanceRepository.existsByUserIdAndSessionId(userId, session.getId())) {
+        attendanceRepository.save(
+            AttendanceRecord.builder()
+                .userId(userId)
+                .sessionId(session.getId())
+                .status(AttendanceStatus.ABSENT)
+                .modifiedBy("SYSTEM")
+                .modifyReason("세션 종료 후 그룹 배정 - 자동 결석 처리")
+                .build());
+      }
+    }
   }
 
   /** 세션 대시보드 캐시를 안전하게 비운다. getCache()가 @Nullable을 반환하므로 null 체크를 거친다. */
