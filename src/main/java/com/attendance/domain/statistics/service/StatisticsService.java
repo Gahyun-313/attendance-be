@@ -38,8 +38,8 @@ public class StatisticsService {
   private static final int RECENT_RECORD_LIMIT = 5;
   private static final int RANKING_MIN_LIMIT = 1;
   private static final int RANKING_MAX_LIMIT = 50;
-  private static final int TODAY_TREND_START_HOUR = 9;
-  private static final int TODAY_TREND_END_HOUR = 21;
+  private static final int TODAY_TREND_START_HOUR = 0;
+  private static final int TODAY_TREND_END_HOUR = 23;
   // 오늘 출석 집계 대상 세션 상태. ACTIVE도 포함해 하루 중간에도 실시간으로 값이 갱신되게 한다.
   private static final List<SessionStatus> TODAY_SUMMARY_STATUSES =
       List.of(SessionStatus.ACTIVE, SessionStatus.COMPLETED);
@@ -193,7 +193,7 @@ public class StatisticsService {
         sessionRepository.findByOrganizationIdAndSessionDateAndStatusIn(
             organizationId, LocalDate.now(), TODAY_SUMMARY_STATUSES);
 
-    // 09~21시 구간을 0으로 초기화해, 체크인이 없는 시간대도 차트에 빈 구간 없이 표시되게 한다.
+    // 0~23시(하루 전체) 구간을 0으로 초기화해, 체크인이 없는 시간대도 차트에 빈 구간 없이 표시되게 한다.
     Map<Integer, Long> hourlyCounts = new LinkedHashMap<>();
     for (int hour = TODAY_TREND_START_HOUR; hour <= TODAY_TREND_END_HOUR; hour++) {
       hourlyCounts.put(hour, 0L);
