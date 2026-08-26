@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.attendance.domain.attendance.service.AttendanceService;
 import com.attendance.domain.group.repository.GroupRepository;
 import com.attendance.domain.user.dto.ChangePasswordRequest;
 import com.attendance.domain.user.dto.CreateUserRequest;
@@ -49,6 +50,8 @@ class UserServiceTest {
    * 주입된다.
    */
   @Mock private UserRepository userRepository;
+
+  @Mock private AttendanceService attendanceService;
 
   @Mock private PasswordEncoder passwordEncoder;
   @Mock private GroupRepository groupRepository;

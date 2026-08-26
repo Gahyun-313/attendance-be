@@ -16,6 +16,7 @@ import com.attendance.global.exception.EntityNotFoundException;
 import com.attendance.global.exception.ErrorCode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -83,6 +84,11 @@ public class SessionService {
     if (session.getStatus() == SessionStatus.COMPLETED
         || session.getStatus() == SessionStatus.CANCELED) {
       throw new BusinessException(ErrorCode.SESSION_ALREADY_CLOSED);
+    }
+    // ACTIVE는 시작 시점 그룹 기준으로 WAITING 레코드가 이미 생성돼 있어, 그룹을 바꿔도 레코드가 재생성되지 않는다.
+    if (session.getStatus() == SessionStatus.ACTIVE
+        && !Objects.equals(session.getGroupName(), request.getGroupName())) {
+      throw new BusinessException(ErrorCode.SESSION_GROUP_CHANGE_NOT_ALLOWED);
     }
     validateGroupName(request.getGroupName(), organizationId);
 
