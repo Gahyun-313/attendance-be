@@ -1,6 +1,7 @@
 package com.attendance.domain.statistics.service;
 
 import com.attendance.domain.attendance.dto.AttendanceResponse;
+import com.attendance.domain.attendance.entity.AttendanceRecord;
 import com.attendance.domain.attendance.entity.AttendanceStatus;
 import com.attendance.domain.attendance.repository.AttendanceRepository;
 import com.attendance.domain.attendance.service.AttendanceService;
@@ -16,7 +17,9 @@ import com.attendance.global.exception.EntityNotFoundException;
 import com.attendance.global.exception.ErrorCode;
 import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
@@ -35,6 +38,11 @@ public class StatisticsService {
   private static final int RECENT_RECORD_LIMIT = 5;
   private static final int RANKING_MIN_LIMIT = 1;
   private static final int RANKING_MAX_LIMIT = 50;
+  private static final int TODAY_TREND_START_HOUR = 9;
+  private static final int TODAY_TREND_END_HOUR = 21;
+  // 오늘 출석 집계 대상 세션 상태. ACTIVE도 포함해 하루 중간에도 실시간으로 값이 갱신되게 한다.
+  private static final List<SessionStatus> TODAY_SUMMARY_STATUSES =
+      List.of(SessionStatus.ACTIVE, SessionStatus.COMPLETED);
 
   private final AttendanceRepository attendanceRepository;
   private final SessionRepository sessionRepository;
@@ -90,12 +98,21 @@ public class StatisticsService {
     // 그룹별 누적 출석률 계산
     List<GroupAttendanceRate> groupAttendanceRates = calculateGroupAttendanceRates(organizationId);
 
+    // 오늘 출석률/상태분포/시간대별 체크인 추이 집계 (원본 데이터가 같아 한 번에 묶어 계산)
+    TodayAttendanceSummary todaySummary = calculateTodayAttendanceSummary(organizationId);
+
     // 집계 결과를 응답 DTO로 변환
     return DashboardStatisticsResponse.builder()
         .todaySessionCount(todaySessionCount)
         .activeSessionCount(activeSessionCount)
         .recentAttendanceRate(recentAttendanceRate)
         .groupAttendanceRates(groupAttendanceRates)
+        .todayAttendanceRate(todaySummary.attendanceRate())
+        .todayPresentCount(todaySummary.present())
+        .todayLateCount(todaySummary.late())
+        .todayAbsentCount(todaySummary.absent())
+        .todayWaitingCount(todaySummary.waiting())
+        .hourlyCheckInTrend(todaySummary.hourlyCheckInTrend())
         .build();
   }
 
@@ -165,6 +182,77 @@ public class StatisticsService {
   }
 
   // 내부 유틸
+
+  /**
+   * 오늘(sessionDate=오늘) 출석률/상태분포/시간대별 체크인 추이 집계 세션마다 출석 레코드를 반복 조회하지만, 하루에 발생하는 세션 수가 적어 그룹별
+   * 집계(calculateGroupAttendanceRates)와 동일한 방식을 그대로 따른다.
+   */
+  private TodayAttendanceSummary calculateTodayAttendanceSummary(Long organizationId) {
+    // ACTIVE+COMPLETED 상태의 오늘 세션 조회. ACTIVE도 포함해 하루 중간에도 값이 실시간으로 갱신되게 한다.
+    List<AttendanceSession> todaySessions =
+        sessionRepository.findByOrganizationIdAndSessionDateAndStatusIn(
+            organizationId, LocalDate.now(), TODAY_SUMMARY_STATUSES);
+
+    // 09~21시 구간을 0으로 초기화해, 체크인이 없는 시간대도 차트에 빈 구간 없이 표시되게 한다.
+    Map<Integer, Long> hourlyCounts = new LinkedHashMap<>();
+    for (int hour = TODAY_TREND_START_HOUR; hour <= TODAY_TREND_END_HOUR; hour++) {
+      hourlyCounts.put(hour, 0L);
+    }
+
+    long targetCount = 0;
+    long present = 0;
+    long late = 0;
+    long absent = 0;
+    long waiting = 0;
+
+    for (AttendanceSession session : todaySessions) {
+      List<AttendanceRecord> records = attendanceRepository.findBySessionId(session.getId());
+
+      // 세션별 대상자 수 누적. 그룹 미지정 세션은 실제 생성된 레코드 수로 근사한다(AttendanceDashboardResponse와 동일한 방식).
+      targetCount +=
+          session.getGroupName() != null
+              ? userRepository.countByRoleAndGroupNameAndOrganizationId(
+                  UserRole.STUDENT, session.getGroupName(), organizationId)
+              : records.size();
+
+      for (AttendanceRecord record : records) {
+        switch (record.getStatus()) {
+          case PRESENT -> present++;
+          case LATE -> late++;
+          case ABSENT -> absent++;
+          case WAITING -> waiting++;
+        }
+        // 체크인 시각이 있는 기록만 시간대별 추이에 반영한다(WAITING/ABSENT는 checkInTime이 없음).
+        if (record.getCheckInTime() != null) {
+          hourlyCounts.computeIfPresent(
+              record.getCheckInTime().getHour(), (hour, count) -> count + 1);
+        }
+      }
+    }
+
+    double rate =
+        targetCount == 0 ? 0.0 : Math.round((present + late) * 1000.0 / targetCount) / 10.0;
+    List<HourlyCheckInCount> hourlyTrend =
+        hourlyCounts.entrySet().stream()
+            .map(
+                entry ->
+                    HourlyCheckInCount.builder()
+                        .hour(entry.getKey())
+                        .count(entry.getValue())
+                        .build())
+            .toList();
+
+    return new TodayAttendanceSummary(rate, present, late, absent, waiting, hourlyTrend);
+  }
+
+  /** calculateTodayAttendanceSummary 계산 결과를 담는 내부 전용 집계 홀더 */
+  private record TodayAttendanceSummary(
+      double attendanceRate,
+      long present,
+      long late,
+      long absent,
+      long waiting,
+      List<HourlyCheckInCount> hourlyCheckInTrend) {}
 
   /** 최근 완료된 세션 N개의 평균 출석률 계산 */
   private double calculateRecentAttendanceRate(Long organizationId) {
