@@ -14,8 +14,26 @@ spring:
   cache:
     type: redis
 
+  # 이메일 가입·비밀번호 재설정 메일 발송 (Gmail은 앱 비밀번호 사용)
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: your_email@gmail.com
+    password: your_app_password
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 # redisson-spring-boot-starter가 build.gradle에 있으면 위 spring.data.redis 설정을 그대로 읽어
 # RedissonClient(분산 락)를 자동 구성한다 - 별도 on/off 프로퍼티 없음
+
+# 구글 소셜 로그인 Client ID
+oauth:
+  google:
+    client-id: YOUR_GOOGLE_OAUTH_CLIENT_ID
 
 jwt:
   secret: your-secret-key-min-256-bits-please-change-this
