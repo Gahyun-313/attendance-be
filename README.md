@@ -10,6 +10,8 @@ NFC 기반 출석 요청을 검증하고, 출석 기록과 관리자 기능을 �
 
 인증, 출석, 세션, 사용자, 그룹, NFC 태그, 통계, 알림과 조직 API를 구현했으며, AWS 환경에 직접 배포해 React 관리자 웹과의 실제 REST API 연동을 검증했습니다.
 
+<img width="1707" height="921" alt="image" src="https://github.com/user-attachments/assets/71c71113-6f80-4f79-aa2d-55cc30a01a91" />
+
 <br>
 
 ## 📖 서비스 소개
